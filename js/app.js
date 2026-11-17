@@ -1160,7 +1160,7 @@ function guidebook(uid) {
 
 /* ================= cloud: class account, backup & real class leaderboard ================= */
 /* One config constant; a custom domain can replace it later. Override per device: localStorage['e6.api'] = 'https://…' */
-var API_BASE = 'https://english6-api.lightbridge18.workers.dev';
+var API_BASE = 'https://api.tuv.indevs.in';
 var ACCT_KEY = 'e6.acct', SYNC_GAP = 180000;
 function apiBase() { try { var o = localStorage.getItem('e6.api'); if (o && /^https?:\/\//.test(o)) return o.replace(/\/+$/, ''); } catch (e) { } return API_BASE; }
 /* ISO week id in Asia/Shanghai (Monday start) — same formula as the server */
