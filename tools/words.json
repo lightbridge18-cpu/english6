@@ -1,0 +1,1322 @@
+[
+ {
+  "w": "was",
+  "ph": "/wəz/",
+  "zh": "（be的第一和第三人称单数过去式）",
+  "page": 4,
+  "unit": 1,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "climb",
+  "ph": "/klaɪm/",
+  "zh": "攀登；爬",
+  "page": 4,
+  "unit": 1,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "kilometre",
+  "ph": "/kɪˈlɒmɪtə(r)/",
+  "zh": "千米；公里（=km）",
+  "page": 4,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "gingerbread house",
+  "ph": "/ˈdʒɪndʒəbred/",
+  "zh": "姜饼屋",
+  "page": 4,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "send",
+  "ph": "/send/",
+  "zh": "邮寄；发送",
+  "page": 4,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "go",
+  "ph": "/ɡəʊ/",
+  "zh": "去；走",
+  "page": 6,
+  "unit": 1,
+  "req": true,
+  "lvl2": true,
+  "past": "went",
+  "pastPh": "/went/"
+ },
+ {
+  "w": "thousand",
+  "ph": "/ˈθaʊznd/",
+  "zh": "一千",
+  "page": 6,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "clay",
+  "ph": "/kleɪ/",
+  "zh": "黏土；陶土",
+  "page": 6,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "see",
+  "ph": "/siː/",
+  "zh": "看见",
+  "page": 6,
+  "unit": 1,
+  "req": true,
+  "lvl2": true,
+  "past": "saw",
+  "pastPh": "/sɔː/"
+ },
+ {
+  "w": "village",
+  "ph": "/ˈvɪlɪdʒ/",
+  "zh": "村庄；村镇",
+  "page": 7,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "eat",
+  "ph": "/iːt/",
+  "zh": "吃",
+  "page": 7,
+  "unit": 1,
+  "req": true,
+  "lvl2": true,
+  "past": "ate",
+  "pastPh": "/eɪt/"
+ },
+ {
+  "w": "dry",
+  "ph": "/draɪ/",
+  "zh": "干的",
+  "page": 7,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "take",
+  "ph": "/teɪk/",
+  "zh": "做（某个动作；和名词连用代替某个动词）",
+  "page": 7,
+  "unit": 1,
+  "req": true,
+  "lvl2": true,
+  "past": "took",
+  "pastPh": "/tʊk/"
+ },
+ {
+  "w": "view",
+  "ph": "/vjuː/",
+  "zh": "景色",
+  "page": 7,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "inspiring",
+  "ph": "/ɪnˈspaɪərɪŋ/",
+  "zh": "鼓舞人心的",
+  "page": 8,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "bamboo",
+  "ph": "/ˌbæmˈbuː/",
+  "zh": "竹；竹子",
+  "page": 8,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "pumpkin",
+  "ph": "/ˈpʌmpkɪn/",
+  "zh": "南瓜",
+  "page": 8,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "restaurant",
+  "ph": "/ˈrestrɒnt/",
+  "zh": "餐馆；餐厅",
+  "page": 8,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "airport",
+  "ph": "/ˈeəpɔːt/",
+  "zh": "机场",
+  "page": 8,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "New Zealand",
+  "ph": "/ˌnjuː ˈziːlənd/",
+  "zh": "新西兰",
+  "page": 4,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "Hong Kong-Zhuhai-Macao Bridge",
+  "ph": "/ˌhɒŋˈkɒŋ/ /məˈkaʊ/ /brɪdʒ/",
+  "zh": "港珠澳大桥",
+  "page": 5,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "Paris",
+  "ph": "/ˈpærɪs/",
+  "zh": "巴黎",
+  "page": 5,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "Eiffel Tower",
+  "ph": "/ˈaɪfəl/",
+  "zh": "埃菲尔铁塔",
+  "page": 5,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "Terracotta Warriors",
+  "ph": "/ˌterəˈkɒtə/ /ˈwɒriəz/",
+  "zh": "兵马俑",
+  "page": 6,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "Jinggangshan Revolution Museum",
+  "ph": "/ˌrevəˈluːʃn/",
+  "zh": "井冈山革命博物馆",
+  "page": 8,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "the Red Army",
+  "ph": "",
+  "zh": "红军",
+  "page": 8,
+  "unit": 1,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "paste",
+  "ph": "/peɪst/",
+  "zh": "粘贴",
+  "page": 16,
+  "unit": 2,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "dress",
+  "ph": "/dres/",
+  "zh": "穿衣服",
+  "page": 17,
+  "unit": 2,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "gala",
+  "ph": "/ˈɡɑːlə/",
+  "zh": "演出；庆典",
+  "page": 17,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "count down",
+  "ph": "/kaʊnt/ /daʊn/",
+  "zh": "倒计时",
+  "page": 17,
+  "unit": 2,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "marathon",
+  "ph": "/ˈmærəθən/",
+  "zh": "马拉松赛跑",
+  "page": 18,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "as",
+  "ph": "/əz/",
+  "zh": "作为",
+  "page": 18,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "race",
+  "ph": "/reɪs/",
+  "zh": "赛跑；速度竞赛",
+  "page": 18,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "run",
+  "ph": "/rʌn/",
+  "zh": "跑；奔跑",
+  "page": 18,
+  "unit": 2,
+  "req": true,
+  "lvl2": true,
+  "past": "ran",
+  "pastPh": "/ræn/"
+ },
+ {
+  "w": "cheer",
+  "ph": "/tʃɪə(r)/",
+  "zh": "欢呼；加油",
+  "page": 18,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "book fair",
+  "ph": "/feə(r)/",
+  "zh": "书市",
+  "page": 18,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "writer",
+  "ph": "/ˈraɪtə(r)/",
+  "zh": "作家；作者",
+  "page": 19,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "read",
+  "ph": "/riːd/",
+  "zh": "阅读",
+  "page": 19,
+  "unit": 2,
+  "req": true,
+  "lvl2": true,
+  "past": "read",
+  "pastPh": "/red/"
+ },
+ {
+  "w": "make",
+  "ph": "/meɪk/",
+  "zh": "做；使出现",
+  "page": 19,
+  "unit": 2,
+  "req": true,
+  "lvl2": true,
+  "past": "made",
+  "pastPh": "/meɪd/"
+ },
+ {
+  "w": "sing",
+  "ph": "/sɪŋ/",
+  "zh": "唱（歌）；演唱",
+  "page": 19,
+  "unit": 2,
+  "req": true,
+  "lvl2": true,
+  "past": "sang",
+  "pastPh": "/sæŋ/"
+ },
+ {
+  "w": "wear",
+  "ph": "/weə(r)/",
+  "zh": "穿；戴",
+  "page": 19,
+  "unit": 2,
+  "req": true,
+  "lvl2": true,
+  "past": "wore",
+  "pastPh": "/wɔː(r)/"
+ },
+ {
+  "w": "yesterday",
+  "ph": "/ˈjestədeɪ/",
+  "zh": "昨天",
+  "page": 19,
+  "unit": 2,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "notice",
+  "ph": "/ˈnəʊtɪs/",
+  "zh": "通知",
+  "page": 20,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "wake",
+  "ph": "/weɪk/",
+  "zh": "醒；醒来",
+  "page": 20,
+  "unit": 2,
+  "req": false,
+  "lvl2": true,
+  "past": "woke",
+  "pastPh": "/wəʊk/"
+ },
+ {
+  "w": "later",
+  "ph": "/ˈleɪtə(r)/",
+  "zh": "随后；后来",
+  "page": 20,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "judge",
+  "ph": "/dʒʌdʒ/",
+  "zh": "裁判",
+  "page": 20,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "begin",
+  "ph": "/bɪˈɡɪn/",
+  "zh": "开始",
+  "page": 20,
+  "unit": 2,
+  "req": false,
+  "lvl2": true,
+  "past": "began",
+  "pastPh": "/bɪˈɡæn/"
+ },
+ {
+  "w": "win",
+  "ph": "/wɪn/",
+  "zh": "获胜",
+  "page": 20,
+  "unit": 2,
+  "req": false,
+  "lvl2": true,
+  "past": "won",
+  "pastPh": "/wʌn/"
+ },
+ {
+  "w": "winner",
+  "ph": "/ˈwɪnə(r)/",
+  "zh": "获胜的人（或队）；成功者",
+  "page": 20,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "ever",
+  "ph": "/ˈevə(r)/",
+  "zh": "（进行比较时用于加强语气）以往任何时候",
+  "page": 20,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "exciting",
+  "ph": "/ɪkˈsaɪtɪŋ/",
+  "zh": "令人激动的",
+  "page": 20,
+  "unit": 2,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "cold",
+  "ph": "/kəʊld/",
+  "zh": "感冒",
+  "page": 28,
+  "unit": 3,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "ill",
+  "ph": "/ɪl/",
+  "zh": "不舒服；生病的",
+  "page": 28,
+  "unit": 3,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "head",
+  "ph": "/hed/",
+  "zh": "头；头部",
+  "page": 28,
+  "unit": 3,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "runny nose",
+  "ph": "/ˈrʌni/",
+  "zh": "流鼻涕",
+  "page": 28,
+  "unit": 3,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "soon",
+  "ph": "/suːn/",
+  "zh": "很快；马上",
+  "page": 28,
+  "unit": 3,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "fever",
+  "ph": "/ˈfiːvə(r)/",
+  "zh": "发烧；发热",
+  "page": 29,
+  "unit": 3,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "cough",
+  "ph": "/kɒf/",
+  "zh": "咳嗽",
+  "page": 29,
+  "unit": 3,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "discuss",
+  "ph": "/dɪˈskʌs/",
+  "zh": "讨论；商量",
+  "page": 30,
+  "unit": 3,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "diet",
+  "ph": "/ˈdaɪət/",
+  "zh": "日常饮食",
+  "page": 31,
+  "unit": 3,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "stay up",
+  "ph": "",
+  "zh": "熬夜",
+  "page": 31,
+  "unit": 3,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "cry",
+  "ph": "/kraɪ/",
+  "zh": "哭；哭泣",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "another",
+  "ph": "/əˈnʌðə(r)/",
+  "zh": "另一；不同的（人或事物）",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "call",
+  "ph": "/kɔːl/",
+  "zh": "（给……）打电话",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "email",
+  "ph": "/ˈiːmeɪl/",
+  "zh": "电子邮件",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "unhappy",
+  "ph": "/ʌnˈhæpi/",
+  "zh": "不快乐的；难过的",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "glass",
+  "ph": "/ɡlɑːs/",
+  "zh": "一杯（的量）；玻璃",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "may",
+  "ph": "/meɪ/",
+  "zh": "也许；可能",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "add",
+  "ph": "/æd/",
+  "zh": "补充说；增加",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "video",
+  "ph": "/ˈvɪdiəʊ/",
+  "zh": "视频；录像",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "better",
+  "ph": "/ˈbetə(r)/",
+  "zh": "舒畅些的；（病势）好转的",
+  "page": 32,
+  "unit": 3,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "money",
+  "ph": "/ˈmʌni/",
+  "zh": "钱",
+  "page": 40,
+  "unit": 4,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "pocket money",
+  "ph": "/ˈpɒkɪt/",
+  "zh": "零花钱",
+  "page": 40,
+  "unit": 4,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "schoolbag",
+  "ph": "/ˈskuːlbæɡ/",
+  "zh": "书包",
+  "page": 40,
+  "unit": 4,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "goods",
+  "ph": "/ɡʊdz/",
+  "zh": "商品",
+  "page": 41,
+  "unit": 4,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "drink",
+  "ph": "/drɪŋk/",
+  "zh": "饮料",
+  "page": 41,
+  "unit": 4,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "service",
+  "ph": "/ˈsɜːvɪs/",
+  "zh": "服务",
+  "page": 41,
+  "unit": 4,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "haircut",
+  "ph": "/ˈheəkʌt/",
+  "zh": "理发；发型",
+  "page": 41,
+  "unit": 4,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "microscope",
+  "ph": "/ˈmaɪkrəskəʊp/",
+  "zh": "显微镜",
+  "page": 42,
+  "unit": 4,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "lucky",
+  "ph": "/ˈlʌki/",
+  "zh": "幸运的",
+  "page": 42,
+  "unit": 4,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "half",
+  "ph": "/hɑːf/",
+  "zh": "一半",
+  "page": 42,
+  "unit": 4,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "save up",
+  "ph": "",
+  "zh": "攒钱",
+  "page": 43,
+  "unit": 4,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "sale",
+  "ph": "/seɪl/",
+  "zh": "特价销售；出售",
+  "page": 43,
+  "unit": 4,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "ticket",
+  "ph": "/ˈtɪkɪt/",
+  "zh": "票",
+  "page": 43,
+  "unit": 4,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "manage",
+  "ph": "/ˈmænɪdʒ/",
+  "zh": "管理",
+  "page": 44,
+  "unit": 4,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "sell",
+  "ph": "/sel/",
+  "zh": "出售；售卖",
+  "page": 44,
+  "unit": 4,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "jar",
+  "ph": "/dʒɑː(r)/",
+  "zh": "罐子",
+  "page": 44,
+  "unit": 4,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "for example",
+  "ph": "/ɪɡˈzɑːmpl/",
+  "zh": "例如",
+  "page": 44,
+  "unit": 4,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "planet",
+  "ph": "/ˈplænɪt/",
+  "zh": "行星",
+  "page": 52,
+  "unit": 5,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "earth",
+  "ph": "/ɜːθ/",
+  "zh": "地球",
+  "page": 52,
+  "unit": 5,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "sky",
+  "ph": "/skaɪ/",
+  "zh": "天；天空",
+  "page": 52,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "daytime",
+  "ph": "/ˈdeɪtaɪm/",
+  "zh": "白天",
+  "page": 52,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "cloud",
+  "ph": "/klaʊd/",
+  "zh": "云",
+  "page": 52,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "moon",
+  "ph": "/muːn/",
+  "zh": "月球；月亮；卫星",
+  "page": 52,
+  "unit": 5,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "star",
+  "ph": "/stɑː(r)/",
+  "zh": "恒星；星",
+  "page": 52,
+  "unit": 5,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "space",
+  "ph": "/speɪs/",
+  "zh": "太空；空间",
+  "page": 52,
+  "unit": 5,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "outer space",
+  "ph": "/ˈaʊtə(r)/",
+  "zh": "外太空",
+  "page": 52,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "space station",
+  "ph": "",
+  "zh": "空间站",
+  "page": 52,
+  "unit": 5,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "ocean",
+  "ph": "/ˈəʊʃn/",
+  "zh": "大海；海洋",
+  "page": 52,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "marble",
+  "ph": "/ˈmɑːbl/",
+  "zh": "（玻璃）弹子",
+  "page": 52,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "satellite",
+  "ph": "/ˈsætəlaɪt/",
+  "zh": "人造卫星",
+  "page": 53,
+  "unit": 5,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "soil",
+  "ph": "/sɔɪl/",
+  "zh": "土壤",
+  "page": 54,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "alien",
+  "ph": "/ˈeɪliən/",
+  "zh": "外星生物",
+  "page": 54,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "sunrise",
+  "ph": "/ˈsʌnraɪz/",
+  "zh": "日出",
+  "page": 54,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "rover",
+  "ph": "/ˈrəʊvə(r)/",
+  "zh": "探测器",
+  "page": 54,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "into",
+  "ph": "/ˈɪntə/",
+  "zh": "朝；进入",
+  "page": 55,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "telescope",
+  "ph": "/ˈtelɪskəʊp/",
+  "zh": "望远镜",
+  "page": 55,
+  "unit": 5,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "astronaut",
+  "ph": "/ˈæstrənɔːt/",
+  "zh": "航天员；宇航员",
+  "page": 55,
+  "unit": 5,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "spaceship",
+  "ph": "/ˈspeɪsʃɪp/",
+  "zh": "宇宙飞船",
+  "page": 55,
+  "unit": 5,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "month",
+  "ph": "/mʌnθ/",
+  "zh": "月；月份",
+  "page": 55,
+  "unit": 5,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "taikonaut",
+  "ph": "/ˈtaɪkənɔːt/",
+  "zh": "中国航天员",
+  "page": 56,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "cloth",
+  "ph": "/klɒθ/",
+  "zh": "（一块）布；织物",
+  "page": 56,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "toothpaste",
+  "ph": "/ˈtuːθpeɪst/",
+  "zh": "牙膏",
+  "page": 56,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "question",
+  "ph": "/ˈkwestʃən/",
+  "zh": "问题",
+  "page": 56,
+  "unit": 5,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "sunset",
+  "ph": "/ˈsʌnset/",
+  "zh": "日落",
+  "page": 56,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "time",
+  "ph": "/taɪm/",
+  "zh": "次；回",
+  "page": 56,
+  "unit": 5,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "Mars",
+  "ph": "/mɑːz/",
+  "zh": "火星",
+  "page": 54,
+  "unit": 5,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "power",
+  "ph": "/ˈpaʊə(r)/",
+  "zh": "能；能量",
+  "page": 64,
+  "unit": 6,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "electricity",
+  "ph": "/ɪˌlekˈtrɪsəti/",
+  "zh": "电",
+  "page": 64,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "solar",
+  "ph": "/ˈsəʊlə(r)/",
+  "zh": "太阳的",
+  "page": 65,
+  "unit": 6,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "type",
+  "ph": "/taɪp/",
+  "zh": "类型；种类",
+  "page": 65,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "energy",
+  "ph": "/ˈenədʒi/",
+  "zh": "能源",
+  "page": 65,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "light",
+  "ph": "/laɪt/",
+  "zh": "照亮",
+  "page": 65,
+  "unit": 6,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "heat",
+  "ph": "/hiːt/",
+  "zh": "加热；（使）变暖；热量",
+  "page": 65,
+  "unit": 6,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "cool",
+  "ph": "/kuːl/",
+  "zh": "（使）变凉，冷却",
+  "page": 65,
+  "unit": 6,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "run",
+  "ph": "/rʌn/",
+  "zh": "（使）运转",
+  "page": 65,
+  "unit": 6,
+  "req": true,
+  "lvl2": true
+ },
+ {
+  "w": "resource",
+  "ph": "/rɪˈsɔːs/",
+  "zh": "资源",
+  "page": 66,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "run out",
+  "ph": "",
+  "zh": "用完",
+  "page": 66,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "change",
+  "ph": "/tʃeɪndʒ/",
+  "zh": "（使）不同；改变",
+  "page": 66,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "quick",
+  "ph": "/kwɪk/",
+  "zh": "迅速的；快的",
+  "page": 66,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "shower",
+  "ph": "/ˈʃaʊə(r)/",
+  "zh": "淋浴",
+  "page": 66,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "unplug",
+  "ph": "/ˌʌnˈplʌɡ/",
+  "zh": "拔掉……的电源插头",
+  "page": 66,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "difference",
+  "ph": "/ˈdɪfrəns/",
+  "zh": "差别；不同（之处）",
+  "page": 66,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "reduce",
+  "ph": "/rɪˈdjuːs/",
+  "zh": "减少",
+  "page": 67,
+  "unit": 6,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "air conditioner",
+  "ph": "/ˈeə kənˌdɪʃənə(r)/",
+  "zh": "空调机",
+  "page": 67,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "drive",
+  "ph": "/draɪv/",
+  "zh": "驾驶；开车",
+  "page": 67,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "reuse",
+  "ph": "/ˌriːˈjuːz/",
+  "zh": "再次使用；重复使用",
+  "page": 67,
+  "unit": 6,
+  "req": true,
+  "lvl2": false
+ },
+ {
+  "w": "own",
+  "ph": "/əʊn/",
+  "zh": "自己的",
+  "page": 67,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "market",
+  "ph": "/ˈmɑːkɪt/",
+  "zh": "集市；市场",
+  "page": 67,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "bottle",
+  "ph": "/ˈbɒtl/",
+  "zh": "瓶子",
+  "page": 67,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "top",
+  "ph": "/tɒp/",
+  "zh": "（位置、级别或程度）最高的",
+  "page": 68,
+  "unit": 6,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "useful",
+  "ph": "/ˈjuːsfl/",
+  "zh": "有用的；有益的",
+  "page": 68,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ },
+ {
+  "w": "dirty",
+  "ph": "/ˈdɜːti/",
+  "zh": "脏的",
+  "page": 68,
+  "unit": 6,
+  "req": false,
+  "lvl2": true
+ },
+ {
+  "w": "side",
+  "ph": "/saɪd/",
+  "zh": "一面；一边",
+  "page": 68,
+  "unit": 6,
+  "req": false,
+  "lvl2": false
+ }
+]
