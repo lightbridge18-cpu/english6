@@ -1,0 +1,25 @@
+{
+  "note": "ready:true = always listed in the course menu; entries without ready are probed (HEAD) when the course menu opens; ready:false = hidden. Progress is stored per book id.",
+  "books": [
+    {
+      "id": "book",
+      "title": "六年级上册",
+      "short": "六上",
+      "sub": "人教PEP · 2026秋",
+      "emoji": "📘",
+      "file": "data/book.json",
+      "js": "data/book.js",
+      "ready": true
+    },
+    {
+      "id": "g6down",
+      "title": "六年级下册",
+      "short": "六下",
+      "sub": "人教PEP · 2027春",
+      "emoji": "📗",
+      "file": "data/g6down.json",
+      "js": "data/g6down.js",
+      "ready": true
+    }
+  ]
+}
