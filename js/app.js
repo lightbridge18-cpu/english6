@@ -903,6 +903,7 @@ function finishSession(failed) {
   $('#cont').onclick = function () { if (showStreak) { S.streakShown = today(); save(); streakScreen(function () { afterFinish(o); }); } else afterFinish(o); };
   $('#again').onclick = function () { var oo = o; session = null; if (oo.mode === 'lesson') startSession({ mode: 'lesson', title: oo.title, questions: pickLessonQs(LESSONS[oo.lessonId]), lessonId: oo.lessonId }); else if (oo.mode === 'challenge') startChallenge(oo.unitId); else if (oo.mode === 'words') startWordPractice(oo.unitId); else if (oo.mode === 'jump') startJump(oo.unitId); else if (oo.mode === 'practice') { oo.kind === 'listen' ? startListenPractice() : oo.kind === 'speak' ? startSpeakPractice() : startMixedPractice(); } else startSession(oo); };
   session = null; save(); checkAch();
+  Cloud.markDirty();
 }
 function afterFinish(o) {
   closeLesson(true);
@@ -1157,6 +1158,285 @@ function guidebook(uid) {
   modal(h, function (m, close) { $('[data-close]', m).onclick = close; $$('[data-sayt]', m).forEach(function (el) { el.onclick = function () { speakEn(el.getAttribute('data-sayt')); }; }); }, 'guide');
 }
 
+/* ================= cloud: class account, backup & real class leaderboard ================= */
+/* One config constant; a custom domain can replace it later. Override per device: localStorage['e6.api'] = 'https://…' */
+var API_BASE = 'https://english6-api.lightbridge18.workers.dev';
+var ACCT_KEY = 'e6.acct', SYNC_GAP = 180000;
+function apiBase() { try { var o = localStorage.getItem('e6.api'); if (o && /^https?:\/\//.test(o)) return o.replace(/\/+$/, ''); } catch (e) { } return API_BASE; }
+/* ISO week id in Asia/Shanghai (Monday start) — same formula as the server */
+function shWeekId(t) {
+  var d = new Date((t || Date.now()) + 8 * 3600e3), day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day + 3);
+  var y = d.getUTCFullYear(), f = new Date(Date.UTC(y, 0, 4));
+  var w = 1 + Math.round(((d - f) / 864e5 - 3 + ((f.getUTCDay() + 6) % 7)) / 7);
+  return y + '-W' + pad(w);
+}
+function shMonday() { var d = new Date(Date.now() + 8 * 3600e3); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); }
+function allDoneLessons() { var n = 0; for (var b in (S.books || {})) { var ls = (S.books[b] || {}).lessons || {}; for (var k in ls) if (ls[k] && ls[k].done) n++; } return n; }
+function cloudStats() { return { xp: S.xp || 0, wxp: weekXP(shMonday()), st: streakNow(), lv: allDoneLessons() }; }
+function hasProgress() { return (S.xp || 0) > 0 || allDoneLessons() > 0; }
+function fmtAgo(ts) {
+  if (!ts) return '还没有同步'; var s = (Date.now() - ts) / 1000;
+  if (s < 60) return '刚刚'; if (s < 3600) return Math.floor(s / 60) + ' 分钟前';
+  var d = new Date(ts); return (dstr(d) === today() ? '今天 ' : (d.getMonth() + 1) + '月' + d.getDate() + '日 ') + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+var Cloud = {
+  acct: null, busy: false, timer: null, board: null, boardTs: 0, boardCls: '', boardErr: false, boardLoading: false, mode: 'w', lastNote: 0,
+  load: function () { try { var a = JSON.parse(localStorage.getItem(ACCT_KEY) || 'null'); this.acct = a && a.cls && a.nick && a.pin ? a : null; } catch (e) { this.acct = null; } },
+  saveAcct: function () { try { if (this.acct) localStorage.setItem(ACCT_KEY, JSON.stringify(this.acct)); else localStorage.removeItem(ACCT_KEY); } catch (e) { } },
+  api: function (path, body) {
+    var ctl = window.AbortController ? new AbortController() : null, tm = setTimeout(function () { if (ctl) ctl.abort(); }, 12000);
+    var opt = body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) } : { method: 'GET' };
+    if (ctl) opt.signal = ctl.signal;
+    return fetch(apiBase() + path, opt).then(function (r) {
+      clearTimeout(tm);
+      return r.json().catch(function () { return { ok: false, code: 'http' + r.status, msg: '云端返回了错误（' + r.status + '）' }; });
+    }, function (e) { clearTimeout(tm); throw { net: true, e: e }; });
+  },
+  note: function () {
+    if (Date.now() - this.lastNote < 30000) return; this.lastNote = Date.now();
+    var old = $('.cloudnote'); if (old) old.remove();
+    var n = document.createElement('div'); n.className = 'cloudnote'; n.textContent = '☁️ 云端暂时连不上，进度已保存在本机'; document.body.appendChild(n);
+    setTimeout(function () { n.classList.add('out'); setTimeout(function () { n.remove(); }, 400); }, 3500);
+  },
+  ident: function () { var a = this.acct; return { cls: a.cls, nick: a.nick, pin: a.pin }; },
+  refreshUI: function () {
+    /* only repaint the account card / class board; never touch an open lesson, result or streak screen or a dialog */
+    var h = location.hash || '', ov = $('#overlay');
+    if (session || (ov && ov.children.length) || $('.modal') || popEl) return;
+    if (h.indexOf('#/me') === 0 && $('#acct')) { var c = $('#acct'); c.outerHTML = acctCardHtml(); bindAcctCard(); }
+    else if (h.indexOf('#/league/class') === 0 || (h.replace(/\/$/, '') === '#/league' && $('.cboard'))) { viewClassBoard(); bindHrefs(V); }
+  },
+  /* called after every finished lesson / challenge / practice session */
+  markDirty: function () { if (!this.acct) return; this.acct.dirty = true; this.saveAcct(); this.schedule(); },
+  schedule: function () {
+    var self = this; if (!this.acct || !this.acct.dirty) return; clearTimeout(this.timer);
+    var wait = Math.max(1500, (this.acct.lastTry || 0) + SYNC_GAP - Date.now());
+    this.timer = setTimeout(function () { self.sync(false); }, wait);
+  },
+  sync: function (manual) {
+    var self = this, a = this.acct; if (!a) return Promise.resolve(false);
+    if (this.busy) return Promise.resolve(false);
+    clearTimeout(this.timer); this.timer = null;
+    var body = this.ident(); body.data = S; body.stats = cloudStats();
+    var txt = JSON.stringify(body);
+    if (txt.length > 390000) { toast('进度数据太大，无法上传云端'); return Promise.resolve(false); }
+    this.busy = true; a.lastTry = Date.now(); this.saveAcct();
+    if (manual) { var b = $('#csync'); if (b) { b.disabled = true; b.textContent = '同步中…'; } }
+    return this.api('/api/sync', txt).then(function (r) {
+      self.busy = false;
+      if (!self.acct) return false;
+      if (r && r.ok) { a.lastSync = Date.now(); a.cloudUpd = r.upd || a.lastSync; a.dirty = false; self.saveAcct(); self.boardTs = 0; if (manual) toast('☁️ 已同步到云端'); self.refreshUI(); return true; }
+      if (r && r.code === 'nouser') { self.acct = null; self.saveAcct(); toast('云端找不到这个账号了，请重新登录', 3200); self.refreshUI(); return false; }
+      toast((r && r.msg) || '同步失败', 3000); self.refreshUI(); return false;
+    }, function () { self.busy = false; self.note(); self.refreshUI(); return false; });
+  },
+  loadBoard: function (force) {
+    var self = this, a = this.acct; if (!a) return Promise.resolve();
+    if (!force && this.board && this.boardCls === a.cls && Date.now() - this.boardTs < 30000) return Promise.resolve();
+    if (this.boardLoading) return Promise.resolve();
+    this.boardLoading = true;
+    return this.api('/api/board?cls=' + encodeURIComponent(a.cls) + (force ? '&t=' + Date.now() : '')).then(function (r) {
+      self.boardLoading = false;
+      if (r && r.rows) { self.board = r; self.boardCls = a.cls; self.boardTs = Date.now(); self.boardErr = false; }
+      else self.boardErr = (r && r.msg) || '读取失败';
+    }, function () { self.boardLoading = false; self.boardErr = 'net'; self.note(); });
+  }
+};
+Cloud.load();
+
+/* ---------- account card (我的) ---------- */
+function acctCardHtml() {
+  var a = Cloud.acct;
+  if (!a) {
+    return '<div class="card form acct" id="acct"><div class="acchead"><span class="bigem">🏫</span><div class="grow"><b>加入班级</b><div class="sub">和同学一起上真实的班级排行榜，进度也会备份到云端，换手机也不怕丢。</div></div></div>' +
+      '<label>班级码</label><input id="acls" maxlength="20" placeholder="例如：六3班-2026" autocomplete="off">' +
+      '<label>昵称 <small class="warnt">不要写真名</small></label><input id="anick" maxlength="12" placeholder="例如：闪电小熊" autocomplete="off">' +
+      '<label>4 位 PIN（记住它，换设备登录要用）</label><input id="apin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" autocomplete="off">' +
+      '<button class="btn block blue" id="alogin" style="margin-top:14px">登录 / 创建账号</button>' +
+      '<p class="sub small" style="margin:10px 0 0">同一个班的同学填一样的班级码。新昵称会自动创建账号；已有昵称需要输入正确的 PIN。</p></div>';
+  }
+  return '<div class="card acct on" id="acct"><div class="acchead"><span class="bigem">🏫</span><div class="grow"><b>' + esc(a.cls) + '</b><div class="sub">昵称：<b>' + esc(a.nick) + '</b> · 上次同步：<span id="alast">' + fmtAgo(a.lastSync) + '</span>' + (a.dirty ? ' · <span class="pend">有新进度待同步</span>' : '') + '</div></div></div>' +
+    '<div class="accbtns"><button class="btn sm blue" id="csync">☁️ 立即同步</button><button class="btn sm ghost" id="crest">⬇️ 从云端恢复</button><button class="btn sm ghost" id="cboard">🏆 班级榜</button><button class="btn sm ghost" id="cout">退出</button></div>' +
+    '<button class="lnkbtn" id="cdel">删除云端数据</button></div>';
+}
+function bindAcctCard() {
+  var lb = $('#alogin');
+  if (lb) {
+    var pin = $('#apin'); pin.oninput = function () { pin.value = pin.value.replace(/\D/g, '').slice(0, 4); };
+    lb.onclick = function () { cloudLogin($('#acls').value, $('#anick').value, pin.value, lb); };
+    return;
+  }
+  if (!$('#csync')) return;
+  $('#csync').onclick = function () { Cloud.sync(true); };
+  $('#crest').onclick = cloudRestorePrompt;
+  $('#cboard').onclick = function () { location.hash = '#/league/class'; };
+  $('#cout').onclick = function () {
+    modal(mascot('think', 80) + '<h2>退出班级账号？</h2><p class="sub">本机进度会保留，只是不再自动同步。' + (Cloud.acct.dirty ? '<br><b>还有新进度没同步</b>，建议先点“立即同步”。' : '') + '</p><button class="btn block" id="oyes">退出</button><button class="btn block ghost" id="ono" style="margin-top:12px">取消</button>', function (m, close) {
+      $('#oyes', m).onclick = function () { clearTimeout(Cloud.timer); Cloud.acct = null; Cloud.board = null; Cloud.saveAcct(); close(); toast('已退出班级账号'); render(); };
+      $('#ono', m).onclick = close;
+    });
+  };
+  $('#cdel').onclick = cloudDeletePrompt;
+}
+function cloudLogin(cls, nick, pin, btn) {
+  cls = String(cls || '').trim(); nick = String(nick || '').trim(); pin = String(pin || '').trim();
+  if (Array.from(cls).length < 2) return toast('班级码至少 2 个字');
+  if (!nick) return toast('请填一个昵称（不要写真名）');
+  if (!/^\d{4}$/.test(pin)) return toast('PIN 需要 4 位数字');
+  if (btn) { btn.disabled = true; btn.textContent = '连接中…'; }
+  var reset = function () { if (btn) { btn.disabled = false; btn.textContent = '登录 / 创建账号'; } };
+  return Cloud.api('/api/login', { cls: cls, nick: nick, pin: pin }).then(function (r) {
+    reset();
+    if (!r || !r.ok) { toast((r && r.msg) || '登录失败', 3000); var p = $('#apin'); if (p) { p.classList.add('shake'); setTimeout(function () { p.classList.remove('shake'); }, 400); } return r; }
+    Cloud.acct = { cls: r.cls || cls.toUpperCase(), nick: r.nick || nick, pin: pin, lastSync: 0, cloudUpd: r.upd || 0, dirty: false }; Cloud.saveAcct(); Cloud.board = null;
+    sfx.good();
+    if (r.created || !r.hasData) {
+      toast(r.created ? '🎉 账号创建成功，欢迎加入 ' + Cloud.acct.cls : '✅ 登录成功');
+      if (hasProgress()) { Cloud.acct.dirty = true; Cloud.saveAcct(); Cloud.sync(false); }
+      render(); return r;
+    }
+    /* existing account with a cloud backup: compare, never overwrite silently */
+    return Cloud.api('/api/restore', Cloud.ident()).then(function (rr) {
+      if (!rr || !rr.ok || !rr.data) { toast('✅ 登录成功'); render(); return r; }
+      render(); cloudChoice(rr.data, rr.upd, true); return r;
+    }, function () { toast('✅ 登录成功（云端进度稍后再比较）'); Cloud.note(); render(); return r; });
+  }, function () { reset(); Cloud.note(); toast('连不上云端，请检查网络后再试', 3000); });
+}
+/* cloud vs local: ask which one to keep */
+function cloudChoice(data, upd, atLogin) {
+  var cx = (data && data.xp) || 0, lx = S.xp || 0, fresh = !hasProgress();
+  if (atLogin && !fresh && cx === lx) { Cloud.acct.lastSync = Date.now(); Cloud.acct.cloudUpd = upd; Cloud.saveAcct(); toast('✅ 登录成功，云端和本机进度一致'); render(); return; }
+  var cloudMore = fresh || cx > lx || (cx === lx && (upd || 0) > (Cloud.acct.lastSync || 0));
+  var title = cloudMore ? '云端有进度（' + cx + ' XP），要恢复到这台设备吗？' : '这台设备的进度更多（' + lx + ' XP），要上传到云端吗？';
+  var sub = '云端：' + cx + ' XP（' + fmtAgo(upd) + '保存）<br>本机：' + lx + ' XP' + (fresh ? '（还没开始学）' : '');
+  modal(mascot('think', 84) + '<h2>' + title + '</h2><p class="sub">' + sub + '</p>' +
+    '<button class="btn block' + (cloudMore ? '' : ' ghost') + '" id="cc_r">⬇️ 恢复云端进度到这台设备</button>' +
+    (fresh ? '' : '<button class="btn block' + (cloudMore ? ' ghost' : ' blue') + '" id="cc_u" style="margin-top:12px">⬆️ 用本机进度覆盖云端</button>') +
+    '<button class="btn block ghost" id="cc_x" style="margin-top:12px">' + (atLogin ? '先不决定（退出登录）' : '取消') + '</button>', function (m, close) {
+      $('#cc_r', m).onclick = function () { close(); applyCloudData(data, upd); };
+      var u = $('#cc_u', m); if (u) u.onclick = function () { close(); Cloud.acct.dirty = true; Cloud.saveAcct(); Cloud.sync(true); };
+      $('#cc_x', m).onclick = function () { close(); if (atLogin) { Cloud.acct = null; Cloud.saveAcct(); toast('已退出，本机进度没有变化'); render(); } };
+    }, 'sticky');
+}
+function applyCloudData(data, upd) {
+  if (!data || typeof data.xp !== 'number') { toast('云端数据格式不对，没有恢复'); return; }
+  var st = migrate(JSON.parse(JSON.stringify(data)));
+  try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { toast('保存失败：浏览器存储已满'); return; }
+  S = merge(defState(), st);
+  Cloud.acct.lastSync = Date.now(); Cloud.acct.cloudUpd = upd || 0; Cloud.acct.dirty = false; Cloud.saveAcct();
+  toast('✅ 已恢复云端进度'); setTimeout(function () { location.reload(); }, 500);
+}
+function cloudRestorePrompt() {
+  var b = $('#crest'); if (b) { b.disabled = true; b.textContent = '读取中…'; }
+  Cloud.api('/api/restore', Cloud.ident()).then(function (r) {
+    if (b) { b.disabled = false; b.textContent = '⬇️ 从云端恢复'; }
+    if (!r || !r.ok) { toast((r && r.msg) || '读取失败', 3000); if (r && r.code === 'nouser') { Cloud.acct = null; Cloud.saveAcct(); render(); } return; }
+    if (!r.data) { toast('云端还没有备份，先点“立即同步”吧'); return; }
+    var cx = r.data.xp || 0;
+    modal(mascot('think', 84) + '<h2>恢复云端进度？</h2><p class="sub">云端：' + cx + ' XP（' + fmtAgo(r.upd) + '保存）<br>本机：' + (S.xp || 0) + ' XP<br>恢复后会<b>替换</b>这台设备上的进度。</p><button class="btn block" id="ry">恢复</button><button class="btn block ghost" id="rn" style="margin-top:12px">取消</button>', function (m, close) {
+      $('#ry', m).onclick = function () { close(); applyCloudData(r.data, r.upd); }; $('#rn', m).onclick = close;
+    });
+  }, function () { if (b) { b.disabled = false; b.textContent = '⬇️ 从云端恢复'; } Cloud.note(); });
+}
+function cloudDeletePrompt() {
+  var go = function () {
+    modal(mascot('sad', 84) + '<h2>删除云端数据？</h2><p class="sub">会删除「' + esc(Cloud.acct.nick) + '」在班级 ' + esc(Cloud.acct.cls) + ' 的云端备份和排行榜记录，不能撤销。本机进度会保留。</p><button class="btn block red" id="dy">确认删除</button><button class="btn block ghost" id="dn" style="margin-top:12px">取消</button>', function (m, close) {
+      $('#dn', m).onclick = close;
+      $('#dy', m).onclick = function () {
+        this.disabled = true;
+        Cloud.api('/api/delete', Cloud.ident()).then(function (r) {
+          close();
+          if (r && (r.ok || r.code === 'nouser')) { clearTimeout(Cloud.timer); Cloud.acct = null; Cloud.board = null; Cloud.saveAcct(); toast('云端数据已删除'); render(); }
+          else toast((r && r.msg) || '删除失败', 3000);
+        }, function () { close(); Cloud.note(); });
+      };
+    });
+  };
+  if (!S.parent.pin) return go();
+  modal('<h2>👨‍👩‍👧 需要家长 PIN</h2><div class="form"><input id="dpin" type="password" inputmode="numeric" maxlength="8"></div><button class="btn block blue" id="dok" style="margin-top:12px">继续</button>', function (m, close) {
+    $('#dok', m).onclick = function () { if ($('#dpin', m).value === S.parent.pin) { close(); go(); } else { toast('PIN 不正确'); $('#dpin', m).classList.add('shake'); setTimeout(function () { $('#dpin', m).classList.remove('shake'); }, 400); } };
+  });
+}
+
+/* ---------- add to home screen ---------- */
+var deferredInstall = null;
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferredInstall = e; });
+function a2hsModal() {
+  var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
+  modal('<h2>📲 添加到主屏幕</h2>' + (standalone ? '<p class="big">✅ 你已经是从主屏幕打开的啦！</p>' : '') +
+    '<p class="sub">像 App 一样一键打开，全屏更好用；iPhone 上还能减少浏览器自动清理进度的情况。</p>' +
+    (deferredInstall ? '<button class="btn block" id="a2go">一键安装到桌面</button>' : '') +
+    '<div class="a2steps' + (ios ? ' first' : '') + '"><b>🍎 iPhone / iPad</b><ol><li>用 <b>Safari</b> 打开本网站</li><li>点底部的 <b>分享</b> 按钮 <span class="kbd">⬆️</span></li><li>往下滑，选 <b>“添加到主屏幕”</b></li><li>点右上角 <b>“添加”</b></li></ol></div>' +
+    '<div class="a2steps"><b>🤖 安卓手机</b><ol><li>用 <b>Chrome</b> 或手机自带浏览器打开</li><li>点右上角 <b>⋮</b> 或底部 <b>≡ 菜单</b></li><li>选 <b>“添加到主屏幕”</b> / <b>“安装应用”</b> / <b>“添加到桌面”</b></li></ol></div>' +
+    '<p class="note">提示：微信里打开时，先点右上角 ··· 选“在浏览器打开”。</p><button class="btn block ghost" data-close>知道了</button>', function (m, close) {
+      $('[data-close]', m).onclick = close;
+      var g = $('#a2go', m); if (g) g.onclick = function () { deferredInstall.prompt(); deferredInstall.userChoice.then(function () { deferredInstall = null; close(); }); };
+    });
+}
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { }); });
+}
+
+/* ---------- 排行榜: 班级 (real) + 联赛 (simulated) ---------- */
+function leagueSeg(seg) { return '<div class="seg"><button class="' + (seg === 'class' ? 'on' : '') + '" data-href="#/league/class">🏫 班级</button><button class="' + (seg === 'bots' ? 'on' : '') + '" data-href="#/league/bots">🏆 联赛</button></div>'; }
+function viewLeague(seg) {
+  seg = seg === 'class' || seg === 'bots' ? seg : (Cloud.acct ? 'class' : 'bots');
+  if (seg === 'bots') { viewBotLeague(); var pg = $('.page.league', V); if (pg) pg.insertAdjacentHTML('afterbegin', leagueSeg('bots')); return; }
+  viewClassBoard();
+}
+function classRows() {
+  var a = Cloud.acct, rows = ((Cloud.board && Cloud.board.rows) || []).map(function (r) { return { nick: r.nick, xp: r.xp, wxp: r.wxp, st: r.st, lv: r.lv }; });
+  var me = rows.filter(function (r) { return r.nick === a.nick; })[0], cs = cloudStats();
+  if (!me) { me = { nick: a.nick, xp: 0, wxp: 0, st: 0, lv: 0 }; rows.push(me); }
+  /* this device knows its own latest numbers; the board can lag up to a minute */
+  me.me = true; me.xp = Math.max(me.xp, cs.xp); me.wxp = Math.max(me.wxp, cs.wxp); me.st = cs.st; me.lv = Math.max(me.lv, cs.lv);
+  var k = Cloud.mode === 'w' ? 'wxp' : 'xp';
+  rows.sort(function (x, y) { return (y[k] - x[k]) || (y.xp - x.xp) || (x.nick < y.nick ? -1 : 1); });
+  return rows;
+}
+function viewClassBoard() {
+  var a = Cloud.acct, h = '<div class="page league cboard">' + leagueSeg('class');
+  if (!a) {
+    h += '<div class="cta center">' + mascot('cheer', 120) + '<h2>加入班级，和同学比一比！</h2><p class="sub">输入老师或同学给的班级码，起一个昵称（不要写真名），就能看到真实的班级排行榜，进度也会自动备份。</p><button class="btn block blue" id="gojoin">去加入班级</button><button class="btn block ghost" data-href="#/league/bots" style="margin-top:12px">先看模拟联赛</button></div></div>';
+    V.innerHTML = h; $('#gojoin').onclick = function () { location.hash = '#/me'; setTimeout(function () { var c = $('#acct'); if (c) { c.scrollIntoView({ block: 'center' }); var i = $('#acls'); if (i) i.focus(); } }, 150); }; return;
+  }
+  var wk = (Cloud.board && Cloud.board.week) || shWeekId();
+  h += '<div class="ptr" id="ptr">↓ 下拉刷新</div><h1 class="h center">🏫 ' + esc(a.cls) + '</h1><div class="sub center">班级排行榜 · 第 ' + (+wk.split('W')[1]) + ' 周（每周一清零本周 XP）</div>' +
+    '<div class="row cbar"><div class="tabs grow"><button class="' + (Cloud.mode === 'w' ? 'on' : '') + '" data-mode="w">本周 XP</button><button class="' + (Cloud.mode === 't' ? 'on' : '') + '" data-mode="t">总 XP</button></div><button class="ibtn" id="crefresh" title="刷新">🔄</button></div>';
+  if (!Cloud.board && Cloud.boardErr) {
+    h += '<div class="cta center">' + mascot('sad', 100) + '<p class="sub">' + (Cloud.boardErr === 'net' ? '云端暂时连不上，稍后再刷新试试。学习进度不受影响。' : esc(Cloud.boardErr)) + '</p><button class="btn ghost" id="cretry">重试</button></div>';
+  } else if (!Cloud.board) {
+    h += '<div class="cta center"><div class="spin"></div><p class="sub">正在加载班级排行榜…</p></div>';
+  } else {
+    var rows = classRows(), k = Cloud.mode === 'w' ? 'wxp' : 'xp';
+    h += '<div class="board">';
+    rows.forEach(function (r, i) {
+      var n = i + 1;
+      h += '<div class="lrow' + (r.me ? ' me' : '') + '"><span class="rk r' + n + '">' + (n <= 3 && r[k] > 0 ? ['🥇', '🥈', '🥉'][n - 1] : n) + '</span><span class="av">' + (r.me ? mascot('happy', 40) : BOT_AV[hashStr(r.nick) % BOT_AV.length]) + '</span><div class="grow"><b>' + esc(r.nick) + (r.me ? '（你）' : '') + '</b><small class="cmeta">' + (r.st ? '🔥 ' + r.st + ' 天' : '🔥 0') + ' · 📘 ' + r.lv + ' 课</small></div><span class="lx">' + r[k] + ' XP</span></div>';
+    });
+    h += '</div>';
+    if (rows.length < 2) h += '<div class="cta center small">' + mascot('think', 80) + '<p class="sub">班里只有你一个人哦！把班级码 <b>' + esc(a.cls) + '</b> 告诉同学，一起来比赛吧。</p></div>';
+    if (Cloud.boardErr) h += '<p class="note center">☁️ 云端暂时连不上，显示的是上次的排行。</p>';
+    h += '<p class="note center">排行约 1 分钟内更新 · 上次刷新 ' + fmtAgo(Cloud.boardTs) + (a.dirty ? ' · 你有新进度待同步' : '') + '</p>';
+  }
+  h += '</div>';
+  V.innerHTML = h;
+  $$('[data-mode]', V).forEach(function (b) { b.onclick = function () { Cloud.mode = b.getAttribute('data-mode'); sfx.tap(); viewClassBoard(); bindHrefs(V); }; });
+  var rf = function () { var btn = $('#crefresh'); if (btn) btn.classList.add('spinning'); Cloud.loadBoard(true).then(function () { if (/^#\/league/.test(location.hash || '') && $('.cboard') && !$('#overlay').children.length) { viewClassBoard(); bindHrefs(V); } }); };
+  $('#crefresh').onclick = rf; var rt = $('#cretry'); if (rt) rt.onclick = rf;
+  if (!Cloud.board || Date.now() - Cloud.boardTs > 30000) { if (!Cloud.boardLoading) Cloud.loadBoard(false).then(function () { if (/^#\/league/.test(location.hash || '') && $('.cboard') && !$('#overlay').children.length) { viewClassBoard(); bindHrefs(V); } }); }
+  V._ptrRefresh = rf;
+}
+/* pull-to-refresh on the class board (touch) */
+(function () {
+  var y0 = null, dy = 0;
+  document.addEventListener('touchstart', function (e) { if (!$('.cboard #ptr') || window.scrollY > 0) { y0 = null; return; } y0 = e.touches[0].clientY; dy = 0; }, { passive: true });
+  document.addEventListener('touchmove', function (e) { if (y0 == null) return; dy = e.touches[0].clientY - y0; var p = $('#ptr'); if (p) { p.style.height = Math.max(0, Math.min(60, dy * 0.5)) + 'px'; p.textContent = dy > 90 ? '↻ 松开刷新' : '↓ 下拉刷新'; } }, { passive: true });
+  document.addEventListener('touchend', function () { if (y0 == null) return; var p = $('#ptr'); if (p) p.style.height = '0'; if (dy > 90 && V._ptrRefresh) V._ptrRefresh(); y0 = null; dy = 0; });
+})();
+
 /* ================= practice hub ================= */
 function hubCard(icon, title, sub, act, cls) { return '<button class="hub ' + (cls || '') + '" ' + act + '><span class="hi">' + icon + '</span><span class="grow"><b>' + title + '</b><small>' + sub + '</small></span><span class="chev">›</span></button>'; }
 function viewPractice() {
@@ -1172,8 +1452,8 @@ function viewPractice() {
   $$('[data-pr]', V).forEach(function (b) { b.onclick = function () { var k = b.getAttribute('data-pr'); if (k === 'listen') startListenPractice(); else if (k === 'speak') startSpeakPractice(); else startMixedPractice(); }; });
 }
 
-/* ================= league ================= */
-function viewLeague() {
+/* ================= league (simulated bots; the real class board lives in 055_cloud.js) ================= */
+function viewBotLeague() {
   var rows = leagueBoard(), rank = myRank(rows), t = S.league.tier, T = TIERS[t];
   var end = new Date(dayOffset(7, mondayOf()) + 'T00:00:00'), left = end - new Date(), dl = Math.floor(left / 86400000), hl = Math.floor(left % 86400000 / 3600000);
   var h = '<div class="page league"><div class="tiers">' + TIERS.map(function (x, i) { return '<span class="tier' + (i === t ? ' on' : i > t ? ' lock' : '') + '" style="--tc:' + x[2] + '">' + (i > t ? '🔒' : x[1]) + '</span>'; }).join('') + '</div>' +
@@ -1184,7 +1464,7 @@ function viewLeague() {
     if (n === LEAGUE_N - DEMO + 1 && t > 0) h += '<div class="zone down">▼ 降级区 DEMOTION ZONE ▼</div>';
     h += '<div class="lrow' + (r.me ? ' me' : '') + (n <= PROMO && t < TIERS.length - 1 ? ' pz' : '') + (n > LEAGUE_N - DEMO && t > 0 ? ' dz' : '') + '"><span class="rk r' + n + '">' + (n <= 3 ? ['🥇', '🥈', '🥉'][n - 1] : n) + '</span><span class="av">' + (r.me ? mascot('happy', 40) : r.av) + '</span><b class="grow">' + esc(r.name) + (r.me ? '（你）' : '') + '</b><span class="lx">' + r.xp + ' XP</span></div>';
   });
-  h += '</div><p class="note center">排行榜里的其他同学是本站模拟的练习伙伴，每周一重新分组。</p></div>';
+  h += '</div><p class="note center">联赛里的其他同学是本站模拟的练习伙伴，每周一重新分组。真实同学请看「班级」榜。</p></div>';
   V.innerHTML = h;
   showLeagueResult();
 }
@@ -1243,6 +1523,7 @@ var GOALS = [[10, '轻松', 'Casual', '每天约 5 分钟'], [20, '常规', 'Reg
 function viewMe() {
   var T = TIERS[S.league.tier], be = bookEntry(S.course) || {};
   var h = '<div class="page"><div class="prof"><div class="pav">' + mascot('happy', 110) + '</div><div class="grow"><h1 class="h" id="pname">' + esc(S.name || '小小学习者') + ' <button class="ibtn sm" id="rename">✏️</button></h1><div class="sub">' + esc(be.title || '') + ' · ' + esc(be.sub || '') + '</div></div></div>' +
+    '<h3 class="sech">班级账号</h3>' + acctCardHtml() +
     '<h3 class="sech">统计</h3><div class="sgrid">' +
     sbox('🔥', streakNow(), '连胜天数') + sbox('⚡', S.xp, '总经验') + sbox(T[1], T[0], '当前联赛') + sbox('👑', crowns(), '皇冠等级') + sbox('📘', doneLessons() + '/' + ALL_LESSON_IDS.length, '完成小课') + sbox('🏆', chalPassed() + '/' + MAIN_UNITS.length, '单元奖杯') + '</div>';
   h += '<h3 class="sech">每日目标</h3><div class="goals">' + GOALS.map(function (g) { return '<button class="goal' + (S.goal === g[0] ? ' on' : '') + '" data-goal="' + g[0] + '"><b>' + g[1] + ' ' + g[2] + '</b><small>' + g[0] + ' XP / 天</small></button>'; }).join('') + '</div>';
@@ -1256,8 +1537,10 @@ function viewMe() {
     '<label class="chk"><input type="checkbox" id="ssfx"' + (S.settings.sfx ? ' checked' : '') + '> 音效</label><label class="chk"><input type="checkbox" id="shap"' + (S.settings.haptics !== false ? ' checked' : '') + '> 振动反馈（支持的手机）</label><label class="chk"><input type="checkbox" id="sauto"' + (S.settings.autoExplain ? ' checked' : '') + '> 打开讲解时自动朗读</label>' +
     '<button class="btn sm ghost" id="stest" style="margin-top:8px">🔊 试听</button></div>';
   if (BOOKS.length > 1) h += '<h3 class="sech">我的课程</h3>' + BOOKS.map(function (b) { return hubCard(b.emoji || '📘', esc(b.title) + (b.id === S.course ? ' ✔' : ''), esc(b.sub || ''), 'data-course2="' + b.id + '"'); }).join('');
-  h += '<button class="btn block blue" data-href="#/parent" style="margin-top:16px">👨‍👩‍👧 家长中心</button><footer class="cr">课本内容版权归人民教育出版社所有，本站仅供家庭学习使用。<br>交互参考 Duolingo 与 聪聪学堂 congcong-school（MIT）。数据保存在本浏览器。</footer></div>';
+  h += '<h3 class="sech">更好用</h3>' + hubCard('📲', '添加到主屏幕', '像 App 一样打开 · iPhone / 安卓步骤', 'id="a2hs"');
+  h += '<button class="btn block blue" data-href="#/parent" style="margin-top:16px">👨‍👩‍👧 家长中心</button><footer class="cr">课本内容版权归人民教育出版社所有，本站仅供家庭学习使用。<br>交互参考 Duolingo 与 聪聪学堂 congcong-school（MIT）。数据保存在本浏览器' + (Cloud.acct ? '，并备份到班级云端' : '') + '。</footer></div>';
   V.innerHTML = h;
+  bindAcctCard(); $('#a2hs').onclick = a2hsModal;
   $('#srate').value = String(S.settings.rate);
   $('#srate').onchange = function () { S.settings.rate = parseFloat(this.value); save(); };
   $('#svoice').onchange = function () { S.settings.voice = this.value; save(); };
@@ -1292,7 +1575,7 @@ function viewParent() {
     '<button class="btn block blue" id="pexp" style="margin-top:10px">导出进度文件</button><label>导入（选择导出的 .json 文件，旧版 v2 备份也可以）</label><input type="file" id="pimp" accept=".json,application/json">' +
     '<label>或粘贴备份文本</label><textarea id="ptxt"></textarea><button class="btn block ghost" id="pimp2" style="margin-top:8px">从文本导入</button></div>' +
     '<div class="card"><h3>⚠️ 重置</h3><button class="btn red block" id="preset">清空全部学习进度</button></div>' +
-    '<div class="card note">关于内容：单词、课文对话和短文转录自人教PEP《英语》课本，版权归人民教育出版社所有；知识讲解、练习题和原创故事为本站编写，可能有疏漏，欢迎家长结合课本使用。排行榜中的其他玩家为本地模拟。</div></div>';
+    '<div class="card note">关于内容：单词、课文对话和短文转录自人教PEP《英语》课本，版权归人民教育出版社所有；知识讲解、练习题和原创故事为本站编写，可能有疏漏，欢迎家长结合课本使用。联赛中的其他玩家为本地模拟；「班级」榜是加入同一班级码的真实同学（只显示昵称）。</div></div>';
   V.innerHTML = h;
   $('#punlock').onchange = function () { S.parent.unlockAll = this.checked; save(); toast(this.checked ? '已解锁全部小课' : '已恢复按顺序解锁'); };
   $('#pinf').onchange = function () { S.parent.unlimitedHearts = this.checked; save(); renderChrome(); };
@@ -1511,7 +1794,7 @@ function render() {
   switch (r[0]) {
     case undefined: viewHome(); break;
     case 'practice': viewPractice(); break;
-    case 'league': viewLeague(); break;
+    case 'league': viewLeague(r[1]); break;
     case 'quests': viewQuests(); break;
     case 'shop': viewShop(); break;
     case 'me': viewMe(); break;
@@ -1553,6 +1836,7 @@ function boot() {
     applyFreezes(); regen(); leagueRollover(); P(); save(); checkAch(true);
     render();
     if (!S.goal) onboarding(); else setTimeout(scrollToCurrent, 300);
+    if (Cloud.acct && Cloud.acct.dirty) Cloud.schedule();
   }).catch(function (e) {
     V.innerHTML = '<div class="loading">' + mascot('sad', 120) + '<p>课本数据加载失败，请刷新重试。</p><p class="sub">' + esc(String(e)) + '</p></div>';
   });
@@ -1560,7 +1844,8 @@ function boot() {
 window.__E6 = {
   sess: function () { return session; }, S: function () { return S; }, B: function () { return B; }, LESSONS: function () { return LESSONS; }, P: P,
   startSession: startSession, startLesson: function (id) { startLesson(LESSONS[id]); }, gen: GEN, leagueBoard: leagueBoard, render: render, save: save,
-  setState: function (fn) { fn(S); save(); render(); }
+  setState: function (fn) { fn(S); save(); render(); },
+  Cloud: Cloud, cloudStats: cloudStats, shWeekId: shWeekId, finishSession: function () { finishSession(); }
 };
 boot();
 })();

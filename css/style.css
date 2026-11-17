@@ -424,3 +424,34 @@ body.theme-night .card,body.theme-night .hub,body.theme-night .sitem,body.theme-
 .lfoot .fbtns .btn:only-child{margin-left:auto}
 .lfoot .fbtns .btn{white-space:nowrap}
 @media(max-width:420px){.lfoot .fbtns .btn{min-width:0;flex:1;padding:13px 10px;font-size:14px;letter-spacing:.3px}.lfoot .fbtns .btn:only-child{flex:1}}
+/* ===== cloud: class account, class board, PWA tip ===== */
+.acct .acchead{display:flex;gap:12px;align-items:flex-start}
+.acct .acchead .bigem{font-size:34px;line-height:1}
+.acct .acchead b{font-size:17px}
+.acct.on{background:var(--bl);border-color:#84d8ff}
+.acct .warnt{color:var(--r);font-weight:900;margin-left:6px}
+.acct .pend{color:var(--o);font-weight:900}
+.accbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.accbtns .btn{flex:1 1 40%}
+.lnkbtn{display:block;margin:12px auto 0;background:none;border:0;color:var(--mute2);font-weight:800;font-size:13px;text-decoration:underline;cursor:pointer}
+.seg{display:flex;background:#f2f2f2;border-radius:14px;padding:4px;gap:4px;margin:4px 0 12px}
+.seg button{flex:1;border:0;background:transparent;border-radius:11px;padding:10px 6px;font-weight:900;font-size:15px;color:var(--mute);cursor:pointer;font-family:inherit}
+.seg button.on{background:#fff;color:var(--bd);box-shadow:0 2px 0 var(--line)}
+.cboard .cbar{align-items:center;gap:8px;margin-top:6px}
+.cboard .cmeta{display:block;color:var(--mute);font-size:12px;font-weight:700}
+.cboard .lrow b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cboard .lrow .grow{min-width:0}
+.cboard .lrow .lx{font-weight:900;color:var(--ink)}
+.cboard .cta{padding:18px 6px}
+.cboard .cta h2{margin:8px 0}
+.ptr{height:0;overflow:hidden;text-align:center;color:var(--mute);font-weight:800;font-size:13px;transition:height .15s;display:flex;align-items:flex-end;justify-content:center}
+.spin{width:34px;height:34px;border:4px solid var(--line);border-top-color:var(--b);border-radius:50%;margin:10px auto;animation:e6spin .8s linear infinite}
+.ibtn.spinning{animation:e6spin .8s linear infinite}
+@keyframes e6spin{to{transform:rotate(360deg)}}
+.cloudnote{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:#fff7e0;color:#8a5a00;border:2px solid #ffd970;padding:8px 14px;border-radius:12px;font-weight:800;font-size:13px;z-index:190;box-shadow:0 4px 12px rgba(0,0,0,.08);transition:opacity .4s;max-width:92vw;text-align:center;pointer-events:none}
+.cloudnote.out{opacity:0}
+.a2steps{border:2px solid var(--line);border-radius:14px;padding:10px 14px;margin:10px 0;text-align:left}
+.a2steps.first{border-color:#84d8ff;background:var(--bl)}
+.a2steps ol{margin:6px 0 0;padding-left:20px;line-height:1.7}
+.kbd{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 4px;background:#fff}
+body.theme-night .seg{background:#22343c}body.theme-night .seg button.on{background:#131f24}
