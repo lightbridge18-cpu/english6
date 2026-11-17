@@ -119,10 +119,10 @@ label.switch input:checked+.sw{background:var(--g)}label.switch input:checked+.s
 .ubanner small{display:block;font-size:13px;opacity:.9;letter-spacing:.6px;font-weight:900}
 .ubanner b{display:block;font-size:21px;line-height:1.25}
 .ubanner .ut span{font-size:13px;opacity:.9}
-.guide{display:flex;align-items:center;gap:8px;border:0;border-left:2px solid var(--ud);background:transparent;color:#fff;font-weight:900;padding:0 16px;cursor:pointer;font-size:13px;letter-spacing:.6px;line-height:1.1;text-align:left}
-.guide small{font-size:11px;opacity:.85}
-.guide:hover{background:rgba(255,255,255,.12)}
-@media(max-width:400px){.guide span{display:none}}
+button.guide{display:flex;align-items:center;gap:8px;border:0;border-left:2px solid var(--ud);background:transparent;color:#fff;font-weight:900;padding:0 16px;cursor:pointer;font-size:13px;letter-spacing:.6px;line-height:1.1;text-align:left}
+button.guide small{font-size:11px;opacity:.85}
+button.guide:hover{background:rgba(255,255,255,.12)}
+@media(max-width:400px){button.guide span{display:none}}
 .jumpwrap{text-align:center;margin:14px 0 -4px}
 .btn.jump{background:#fff;color:var(--uc);border:2px solid var(--line);box-shadow:0 4px 0 var(--line)}
 .path{position:relative;display:flex;flex-direction:column;align-items:center;padding:48px 0 10px}
