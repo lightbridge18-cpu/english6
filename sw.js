@@ -1,11 +1,12 @@
-/* english6 service worker v3.3
+/* english6 service worker v3.4
    - app files: NETWORK-FIRST, cache only as an offline fallback (never serves a stale app when the network works)
    - /audio/*.mp3: CACHE-FIRST, cached on demand the first time a clip is played (nothing is precached); answers Range requests (Safari)
+   - /scenes/<id>/*.webp and /scenes/<id>/a/*.mp3 (v3.4 情景小剧场): CACHE-FIRST on demand, in their own cache
    Cross-origin requests (cloud API, fonts) are not touched. */
-var CACHE = 'e6-v3', AUDIO = 'e6-audio-v1';
+var CACHE = 'e6-v4', AUDIO = 'e6-audio-v1', SCENES = 'e6-scenes-v1';
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
-  e.waitUntil(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== CACHE && k !== AUDIO; }).map(function (k) { return caches.delete(k); })); }).then(function () { return self.clients.claim(); }));
+  e.waitUntil(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== CACHE && k !== AUDIO && k !== SCENES; }).map(function (k) { return caches.delete(k); })); }).then(function () { return self.clients.claim(); }));
 });
 function ranged(req, res) {
   var range = req.headers.get('range'); if (!range || !res || res.status !== 200) return res;
@@ -18,9 +19,10 @@ function ranged(req, res) {
 self.addEventListener('fetch', function (e) {
   var req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
-  if (/\/audio\/(us|gb)\/[0-9a-f]{8}\.mp3$/.test(url.pathname)) {
+  var isScene = /\/scenes\/[a-z0-9-]+\/(\d+\.webp|a\/\d+\.mp3)$/.test(url.pathname);
+  if (isScene || /\/audio\/(us|gb)\/[0-9a-f]{8}\.mp3$/.test(url.pathname)) {
     var key = url.origin + url.pathname;
-    e.respondWith(caches.open(AUDIO).then(function (c) {
+    e.respondWith(caches.open(isScene ? SCENES : AUDIO).then(function (c) {
       return c.match(key).then(function (hit) {
         if (hit) return ranged(req, hit);
         return fetch(key).then(function (res) { if (res && res.ok && res.status === 200) { c.put(key, res.clone()); } return ranged(req, res); });

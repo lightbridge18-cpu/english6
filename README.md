@@ -1,4 +1,4 @@
-# pip english · 六年级英语闯关站 v3 · PEP Grade 6
+# pip english · 六年级英语闯关站 v3.4 · PEP Grade 6
 
 在线使用：<https://lightbridge18-cpu.github.io/english6/>
 
@@ -32,6 +32,19 @@ tools/              生成上册数据用的脚本和内容源文件（Python）
 数据结构（`data/book.json`）：`units[]` 每个单元含 `words`（单词、音标、中文、课本页码、`req` 是否黑体“会用”词、`lvl2` 课标二级词、`past` 过去式）、`passages`（课文逐句：说话人 / 英文 / 中文）、`lessons`（讲解 `explain`、重点句 `key`、题目 `questions`）、`stories`、`song`、`expressions`（附录 4）、`grammar`；另有 `irregular`（附录 5）。
 
 重新生成数据：在 `tools/` 下运行 `python3 build.py ..`（需要 pymupdf 和课本 PDF，路径见脚本）。只改题目或讲解时，编辑 `tools/content/u*.py` 后重新生成即可。
+
+## v3.4 新功能
+
+- **🎬 情景小剧场**（`#/scenes`、`#/scene/<id>`）：每个单元一个原创小短剧（六上 6 个 + 六下 4 个，每个 8 句、2–3 个角色：皮皮 Pip、米娅 Mia、露西 Lucy），用本单元的单词和句型。像动画片一样播放：插画缓慢推拉（Ken Burns）+ 交叉淡入、说话人气泡、英文字幕 + 可开关中文、自动下一句、暂停 / 重播 / 上一句 / 下一句。看完后三步：
+  1. **🎤 跟读**（`#/scene/<id>/rep`）：逐句录音，AI 识别后逐词打分；没有 AI 次数时改为「听自己的录音 + 自评」。
+  2. **🎭 角色扮演**（`#/scene/<id>/role`）：选一个角色，其他角色自动说，轮到你时录音（可选「挑战模式」隐藏英文），最后可以连起来听整场表演。
+  3. **🤖 自由对话**：打开以本剧为话题的 AI 聊天。
+  首页每个单元路径末尾有小剧场卡片，练习中心有「情景小剧场」列表。看完 +5 XP，跟读 +10~15 XP 💎5，角色扮演 +10 XP 💎5（重复练习给少量经验）。进度存在 `books.<id>.scenes`。
+  插画：`scenes/<id>/<n>.webp`（AI 生成，统一的扁平卡通风格，≤80KB）；台词录音：`scenes/<id>/a/<n>.mp3`（edge-tts 女声：皮皮 Jenny 美音、米娅 Ana 美音童声、露西 Sonia 英音）。内容源：`tools/scenes_src.py` → `python3 tools/build_scenes.py` 生成 `data/scenes.json`；录音：`env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy python3 tools/gen_scene_audio.py`。
+- **🤖 和皮皮聊天**（`#/chat`、`#/chat/<场景或单元 id>`）：点 🎤 说英语、再点一下结束（最长 15 秒，iPhone Safari 录 mp4、安卓 / 微信录 webm），或点 ⌨️ 打字。服务器用 Groq 转写（whisper-large-v3-turbo），再由聊天模型（openai/gpt-oss-120b，备用 qwen/qwen3.8-27b）按儿童安全规则回复：只用 A1–A2 简单英语、每次 1–2 句 + 一个追问、温和地纠正（recast），并给一句中文小提示和 0–3 星评价。皮皮的回答用浏览器女声朗读（跟随美音 / 英音设置）。
+- **🤔 讲讲我错在哪**：答错后的反馈面板和错题本里都有这个按钮，AI 用简单中文讲为什么错、正确答案为什么对；同一题同一答案的讲解缓存 90 天，再点不扣次数。
+- **次数限制**（北京时间每天 0 点重置）：登录班级账号（班级码 + 昵称 + PIN）每天 AI 对话 10 次、讲解 20 次、跟读打分 60 次；没登录的按 IP 每天对话 3 次、讲解 3 次、跟读打分 10 次；另有按 IP 和全站的总量保护。页面上会显示剩余次数。录音上限 15 秒 / 1 MB。
+- Groq API key 只存在服务器（Cloudflare Worker），从不发给浏览器。
 
 ## v3.3 新功能
 

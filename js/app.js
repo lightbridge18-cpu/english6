@@ -29,7 +29,7 @@ function mondayOf(dstrv) { var d = new Date((dstrv || today()) + 'T00:00:00'); v
 
 /* ================= state (global learner + per-book progress) ================= */
 var KEY = 'e6.v3', OLDKEY = 'e6.v2';
-function defBook() { return { lessons: {}, chal: {}, wrong: {}, read: {}, stories: {}, chests: {}, tested: {}, readDay: null, focus: '', mocks: [], dictWrong: {} }; }
+function defBook() { return { lessons: {}, chal: {}, wrong: {}, read: {}, stories: {}, chests: {}, tested: {}, readDay: null, focus: '', mocks: [], dictWrong: {}, scenes: {} }; }
 function defState() {
   return {
     v: 3, xp: 0, gems: 100, hearts: 5, heartTs: Date.now(), streak: 0, bestStreak: 0, lastDay: null, days: {}, ach: {}, claimed: {}, wordp: 0,
@@ -54,8 +54,10 @@ function migrate(st) {
     if (st.gems == null) st.gems = 100 + Math.min(400, Object.keys(bk.lessons || {}).length * 10);
   }
   /* v3.3: per-book focus unit / mock history / dictation misses; eye-care + dictation settings */
-  if (st.books) for (var b in st.books) { var x = st.books[b] || (st.books[b] = {}); if (x.focus == null) x.focus = ''; if (!Array.isArray(x.mocks)) x.mocks = []; if (!x.dictWrong || typeof x.dictWrong !== 'object') x.dictWrong = {}; }
+  if (st.books) for (var b in st.books) { var x = st.books[b] || (st.books[b] = {}); if (x.focus == null) x.focus = ''; if (!Array.isArray(x.mocks)) x.mocks = []; if (!x.dictWrong || typeof x.dictWrong !== 'object') x.dictWrong = {}; if (!x.scenes || typeof x.scenes !== 'object') x.scenes = {}; }
   st.settings = st.settings || {}; if (st.settings.eye == null) st.settings.eye = 20; if (st.settings.dictZh == null) st.settings.dictZh = true;
+  /* v3.4: per-book scene progress (books.*.scenes), scene subtitle toggle */
+  if (st.settings.sceneZh == null) st.settings.sceneZh = true;
   return st;
 }
 function load() {
@@ -931,6 +933,7 @@ function check() {
   if (ok && (q.t === 'trans' && q.dir === 'ze' || q.t === 'blank')) sayIt = q.ans || q.full;
   if (sayIt) setTimeout(function () { speakEn(sayIt); }, 250);
   if (q.exp) { var ex = document.createElement('button'); ex.className = 'ibtn sm fbsay'; ex.textContent = '🔊'; ex.title = '朗读解析'; ex.onclick = function () { TTS.mixed(q.exp); }; $('.fbhead', fb).appendChild(ex); }
+  if (!ok && s.o.mode !== 'mock') { var exb = document.createElement('button'); exb.className = 'fbflag fbex'; exb.textContent = '🤔 讲讲我错在哪'; var exAns = ansText(q, s.answer); exb.onclick = function () { explainWrong(q, exAns); }; fb.appendChild(exb); var ww0 = P().wrong[key]; if (ww0) ww0.la = exAns.slice(0, 120); }
   var fl = document.createElement('button'); fl.className = 'fbflag'; fl.textContent = '🚩 报错'; fl.title = '这道题有问题？'; var myAns = s.answer; fl.onclick = function () { reportModal(q, myAns); }; $('.fbhead', fb).appendChild(fl);
   if (s.o.mode === 'lesson' && S.hearts <= 0 && !ok && !S.parent.unlimitedHearts) chk.onclick = function () { heartsOutModal(function () { renderQ(); }, true); };
   if (s.o.maxMistakes && s.mistakes > s.o.maxMistakes) { chk.textContent = '查看结果'; chk.onclick = function () { finishSession(true); }; }
@@ -1167,6 +1170,8 @@ function viewHome() {
       if (k === 2 || (k === 7 && u._items.length > 9)) h += '<div class="pathpip ' + (OFFS[k % 8] > 0 ? 'left' : 'right') + '">' + mascot(k === 2 ? (ui % 2 ? 'cheer' : 'idle') : 'think', 110) + '</div>';
       h += '</div>';
     });
+    var scn = sceneOfUnit(u);
+    if (scn) { var sst = sceneSt(scn.id), sOpen = S.parent.unlockAll || !locked || fu === u; h += '<div class="prow" style="--x:0px"><button class="scnode' + (sOpen ? '' : ' lock') + (sst.watched ? ' done' : '') + '" data-scene="' + scn.id + '" aria-label="情景小剧场"><span class="scimg" style="background-image:url(' + scn.imgs[0] + ')"></span><span class="sctag">🎬 情景小剧场' + (sceneStars(scn.id) ? ' ' + '★★★'.slice(0, sceneStars(scn.id)) : '') + '</span><b>' + esc(scn.title) + '</b></button></div>'; }
     h += '</div></section>';
   });
   h += '<div class="pathend">' + mascot('cheer', 120) + '<p class="sub">继续加油，学完整本书！</p></div><footer class="cr">课本内容版权归人民教育出版社所有 · 仅供家庭学习使用 · 设计灵感来自 Duolingo 与 聪聪学堂（MIT）</footer></div>';
@@ -1175,6 +1180,7 @@ function viewHome() {
   $$('[data-chest]', V).forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); openChest(b); }; });
   $$('[data-trophy]', V).forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); trophyPop(b, b.getAttribute('data-trophy')); }; });
   $$('[data-guide]', V).forEach(function (b) { b.onclick = function () { guidebook(b.getAttribute('data-guide')); }; });
+  $$('[data-scene]', V).forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); if (b.classList.contains('lock')) { toast('🔒 先学完前面的课，再来看这个单元的小剧场'); return; } location.hash = '#/scene/' + b.getAttribute('data-scene'); }; });
   $$('[data-jump]', V).forEach(function (b) { b.onclick = function () { jumpConfirm(b.getAttribute('data-jump')); }; });
   bindFocusCard();
 }
@@ -1528,6 +1534,8 @@ function viewPractice() {
   var h = '<div class="page"><div class="phead">' + mascot('cheer', 90) + '<div><h1 class="h">练习中心</h1><div class="sub">练习不扣爱心，完成一次还能赚回 ❤️ 1 颗。</div></div></div>' +
     hubCard('🔁', '错题复习' + (due ? ' <span class="badge red">' + due + '</span>' : ''), act ? '错题本里有 ' + act + ' 题，按 1/2/4/7/15 天间隔复习' : '错题本是空的，太棒了！', 'data-href="#/review"', 'big') +
     hubCard('🏁', '期末冲刺', MOCK_N + ' 题 · ' + MOCK_MIN + ' 分钟模拟卷，满分 100' + ((P().mocks || []).length ? ' · 上次 ' + P().mocks[P().mocks.length - 1].score + ' 分' : ''), 'data-href="#/mock"', 'mock') +
+    hubCard('🎬', '情景小剧场', '每单元一个动画小短剧：看 → 跟读 → 角色扮演', 'data-href="#/scenes"', 'scene') +
+    hubCard('🤖', '和皮皮聊天', 'AI 英语对话：说英语或打字，皮皮回答你', 'data-href="#/chat"') +
     hubCard('🎧', '单词听写', '听读音拼单词，可开中文提示', 'data-href="#/dict"') +
     hubCard('👂', '听力练习', '听句子、点单词，支持 🐢 慢速', 'data-pr="listen"') +
     hubCard('🎤', '口语练习', SR ? '大声读句子，逐词识别打分' : isWX ? '微信里用不了，请在浏览器打开' : '当前浏览器不支持语音识别', 'data-pr="speak"') +
@@ -1822,10 +1830,11 @@ function viewReview() {
     act.sort(function (a, b) { return W[a].due - W[b].due; }).forEach(function (k) {
       var w = W[k], q = wrongQ(k), ans = rightText(q);
       var dueTxt = w.due <= Date.now() ? '<b style="color:var(--r)">现在</b>' : new Date(w.due).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
-      h += '<div class="card"><div class="sub">' + esc(wrongSrc(k)) + ' · 错 ' + w.n + ' 次 · 第 ' + w.box + '/5 轮 · 下次 ' + dueTxt + '</div><div style="font-weight:800">' + esc(qText(q)) + (q.say && q.t === 'listen' ? ' <span class="sub">（' + esc(q.say) + '）</span>' : '') + '</div>' + (ans ? '<div class="sub">答案：' + esc(ans) + '</div>' : '') + '</div>';
+      h += '<div class="card"><div class="sub">' + esc(wrongSrc(k)) + ' · 错 ' + w.n + ' 次 · 第 ' + w.box + '/5 轮 · 下次 ' + dueTxt + '</div><div style="font-weight:800">' + esc(qText(q)) + (q.say && q.t === 'listen' ? ' <span class="sub">（' + esc(q.say) + '）</span>' : '') + '</div>' + (ans ? '<div class="sub">答案：' + esc(ans) + '</div>' : '') + (w.la ? '<div class="sub">我上次答：' + esc(w.la) + '</div>' : '') + '<button class="btn sm ghost exbtn" data-ex="' + esc(k) + '">🤔 讲讲我错在哪</button></div>';
     });
   }
   V.innerHTML = h + '</div>'; bindBack();
+  $$('[data-ex]', V).forEach(function (b) { b.onclick = function () { var k = b.getAttribute('data-ex'), q = wrongQ(k); if (q) explainWrong(q, (P().wrong[k] || {}).la || ''); }; });
   var g = $('#revgo') || $('#revall');
   if (g) g.onclick = function () { var keys = shuffle(due.length ? due : act).slice(0, 10); startSession({ mode: 'review', title: '错题复习', questions: keys.map(function (k) { var q = wrongQ(k); if (!q._key) q = Object.assign({}, q); return q; }) }); };
 }
@@ -1893,7 +1902,7 @@ function checkLimit() {
 }
 
 /* ================= v3.3: 报错 · 期末冲刺 · 单词听写 · 本周重点 · 学习报告 · 老师看板 · 护眼 · 微信 ================= */
-var APP_V = '3.3.0';
+var APP_V = '3.4.0';
 function isEnWord(t) { return /^[A-Za-z][A-Za-z'’\- ]*$/.test(String(t || '').trim()) && String(t).trim().split(/\s+/).length <= 3; }
 /* which word a missed question was about (for "most-missed words") */
 function missWordOf(q) {
@@ -2229,7 +2238,7 @@ function wxBanner() {
   var b = document.createElement('div'); b.className = 'wxbanner';
   b.innerHTML = '<span>💡 在微信里口语题用不了。点右上角 <b>···</b> 选择<b>「在浏览器打开」</b>，体验更好</span><button aria-label="关闭">✕</button>';
   document.body.insertBefore(b, document.body.firstChild); document.body.classList.add('haswxb');
-  $('button', b).onclick = function () { try { localStorage.setItem('e6.wxb', '1'); } catch (e) { } b.remove(); document.body.classList.remove('haswxb'); };
+  $('button', b).onclick = function () { try { localStorage.setItem('e6.wxb', '1'); } catch (e) { } b.remove(); document.body.classList.remove('haswxb'); if (window.fitChat) fitChat(); };
 }
 
 /* ---------- active-time tracking (for report minutes + eye care) ---------- */
@@ -2240,10 +2249,10 @@ function isActiveNow() { return Date.now() - lastAct < 75000 || (session && Date
 /* ================= router & boot ================= */
 function render() {
   if (!B) return;
-  TTS.stop(); closePop(); renderNav(); renderRight(); renderTop();
+  TTS.stop(); closePop(); renderNav(); renderRight(); renderTop(); if (window.MicRec) MicRec.cancel(); SP = null; VT++;
   var r = (location.hash || '#/').slice(1).split('/').filter(Boolean);
   if (!session && r[0] !== 'lesson') $('#overlay').innerHTML = '';
-  document.body.classList.toggle('onlearn', !r[0]);
+  document.body.classList.toggle('onlearn', !r[0]); document.body.classList.toggle('onchat', r[0] === 'chat' && !!r[1]);
   window.scrollTo(0, 0);
   switch (r[0]) {
     case undefined: viewHome(); break;
@@ -2262,6 +2271,9 @@ function render() {
     case 'mock': viewMock(); break;
     case 'dict': viewDict(); break;
     case 'teacher': viewTeacher(); break;
+    case 'scenes': if (!SCN) loadScenes().then(function () { if (location.hash.indexOf('#/scenes') === 0) render(); }); viewScenes(); break;
+    case 'scene': viewScene(r[1], r[2]); break;
+    case 'chat': viewChat(r[1]); break;
     case 'lesson': viewHome(); if (LESSONS[r[1]]) viewLessonIntro(LESSONS[r[1]]); break;
     case 'challenge': viewHome(); if (UNITS.some(function (u) { return u.id === r[1]; }) && trophyUnlocked(UNITS.filter(function (u) { return u.id === r[1]; })[0])) startChallenge(r[1]); break;
     default: viewHome();
@@ -2290,7 +2302,7 @@ function boot() {
       initBook(book);
     });
   }).then(function () {
-    applyFreezes(); regen(); leagueRollover(); P(); save(); checkAch(true); TTS.loadAudio(); wxBanner(); setTimeout(function () { Reports.flush(); }, 2500);
+    applyFreezes(); regen(); leagueRollover(); P(); save(); checkAch(true); TTS.loadAudio(); loadScenes().then(function () { var h = location.hash || '#/'; if (h === '#/' || h === '#' || /^#\/(scene|chat|practice)/.test(h)) { if (!session && !$('.modal') && !(SP && SP.playing)) render(); } }); wxBanner(); setTimeout(function () { Reports.flush(); }, 2500);
     render();
     if (!S.goal) onboarding(); else setTimeout(scrollToCurrent, 300);
     if (Cloud.acct && Cloud.acct.dirty) Cloud.schedule();
@@ -2298,11 +2310,447 @@ function boot() {
     V.innerHTML = '<div class="loading">' + mascot('sad', 120) + '<p>课本数据加载失败，请刷新重试。</p><p class="sub">' + esc(String(e)) + '</p></div>';
   });
 }
+/* ================= v3.4: 情景小剧场 (scene player · 跟读 · 角色扮演) + AI 对话 with Pip + 讲讲我错在哪 ================= */
+var SCN = null, SCN_IDX = {}, VT = 0; /* VT: bumped on every route render so stale async callbacks stop */
+function loadScenes() { return fetchJSON('data/scenes.json?v=' + APP_V).then(function (d) { SCN = d; SCN_IDX = {}; (d.scenes || []).forEach(function (s) { SCN_IDX[s.id] = s; }); }).catch(function () { SCN = { scenes: [], chars: {} }; }); }
+function sceneOfUnit(u) { return u && SCN ? SCN_IDX[S.course + '-' + u.id] || null : null; }
+function sceneSt(id, w) { var b = P(); if (!b.scenes) b.scenes = {}; if (!w) return b.scenes[id] || {}; return b.scenes[id] = b.scenes[id] || {}; }
+function sceneBookOk(sc) { return sc && sc.book === S.course; }
+function charOf(who) { return (SCN && SCN.chars && SCN.chars[who]) || { zh: who, color: '#777' }; }
+function avatarOf(who, size) {
+  size = size || 40;
+  if (who === 'Pip') return '<span class="scav pipav" style="width:' + size + 'px;height:' + size + 'px">' + mascot('happy', size, '') + '</span>';
+  var c = charOf(who);
+  return '<span class="scav" style="width:' + size + 'px;height:' + size + 'px;background:' + c.color + ';font-size:' + Math.round(size * .45) + 'px">' + esc(who.charAt(0)) + '</span>';
+}
+function sceneStars(id) { var st = sceneSt(id); return (st.watched ? 1 : 0) + (st.rep ? 1 : 0) + (st.role ? 1 : 0); }
+function sceneCardHtml(sc) {
+  var st = sceneSt(sc.id), n = sceneStars(sc.id);
+  return '<button class="sccard" data-href="#/scene/' + sc.id + '"><span class="scthumb" style="background-image:url(' + sc.imgs[0] + ')"></span><span class="grow"><b>' + esc(sc.emoji + ' ' + sc.title) + '</b><small>' + esc(sc.zh) + ' · ' + sc.lines.length + ' 句</small><span class="scprog">' + ['🎬 看', '🎤 跟读', '🎭 表演'].map(function (t, i) { var on = i === 0 ? st.watched : i === 1 ? st.rep : st.role; return '<i class="' + (on ? 'on' : '') + '">' + t + '</i>'; }).join('') + '</span></span><span class="chev">›</span></button>';
+}
+function sceneReward(id, kind, xp, gems) {
+  var st = sceneSt(id, true), first = !st[kind];
+  var got = addXP(first ? xp : Math.max(2, Math.round(xp / 4)));
+  if (first && gems) S.gems += gems;
+  D().scenes = (D().scenes || 0) + 1; S.stats.scenes = (S.stats.scenes || 0) + 1;
+  save(); renderChrome(); Cloud.markDirty();
+  return { xp: got, gems: first ? gems : 0, first: first };
+}
+
+/* ---------- scene list ---------- */
+function viewScenes() {
+  var mine = (SCN && SCN.scenes || []).filter(sceneBookOk), other = (SCN && SCN.scenes || []).filter(function (s) { return !sceneBookOk(s); });
+  var h = '<div class="page"><div class="row">' + backBtn('#/practice') + '<h1 class="h grow" style="margin:0">🎬 情景小剧场</h1></div>' +
+    '<div class="sub">每个单元一个小动画：先看，再跟读、角色扮演，最后和皮皮自由聊天。用的都是本单元的单词和句型。</div>';
+  if (!mine.length && !other.length) h += '<div class="empty">' + mascot('think', 100) + '<p>小剧场正在加载…</p></div>';
+  mine.forEach(function (s) { h += sceneCardHtml(s); });
+  if (other.length) h += '<h3 class="sech">' + (S.course === 'book' ? '六年级下册' : '六年级上册') + '</h3>' + other.map(sceneCardHtml).join('');
+  h += '<button class="hub" data-href="#/chat"><span class="hi">🤖</span><span class="grow"><b>和皮皮聊天</b><small>AI 英语对话：说英语，皮皮会回答你</small></span><span class="chev">›</span></button></div>';
+  V.innerHTML = h; bindBack();
+}
+
+/* ---------- scene player (animated short) ---------- */
+var SP = null;
+function viewScene(id, step) {
+  var sc = SCN_IDX[id]; if (!sc) { if (!SCN) { loadScenes().then(render); V.innerHTML = '<div class="loading">' + mascot('happy', 100) + '<p>正在打开小剧场…</p></div>'; return; } location.hash = '#/scenes'; return; }
+  if (step === 'rep') return viewSceneRepeat(sc);
+  if (step === 'role') return viewSceneRole(sc);
+  var zhOn = S.settings.sceneZh !== false;
+  var h = '<div class="page scpage"><div class="row">' + backBtn('#/scenes') + '<div class="grow"><b class="sctitle">' + esc(sc.emoji + ' ' + sc.title) + '</b><div class="sub">' + esc(sc.zh) + '</div></div><button class="ibtn' + (zhOn ? ' on' : '') + '" id="sczh" title="中文字幕">中</button></div>' +
+    '<div class="stage" id="stage"><div class="kb a"><img alt=""></div><div class="kb b"><img alt=""></div><div class="scbig" id="scbig">▶</div></div>' +
+    '<div class="scbubble" id="scb"></div>' +
+    '<div class="scctl"><button class="ibtn" id="scprev" aria-label="上一句">⏮</button><button class="btn blue scplay" id="scplay">▶ 播放</button><button class="ibtn" id="screp" aria-label="重播这句">🔁</button><button class="ibtn" id="scnext" aria-label="下一句">⏭</button></div>' +
+    '<div class="scdots" id="scdots">' + sc.lines.map(function (_, i) { return '<i data-i="' + i + '"></i>'; }).join('') + '</div>' +
+    '<div class="scsteps" id="scsteps">' + sceneStepsHtml(sc) + '</div></div>';
+  V.innerHTML = h; bindBack(); bindHrefs(V);
+  SP = { sc: sc, i: 0, playing: false, pid: 0, shot: -1, layer: 0, ended: false };
+  sceneShow(0, false);
+  $('#sczh').onclick = function () { S.settings.sceneZh = !(S.settings.sceneZh !== false); save(); this.classList.toggle('on', S.settings.sceneZh); var z = $('.sczh', V); if (z) z.classList.toggle('hidden', !S.settings.sceneZh); };
+  $('#scplay').onclick = function () { if (SP.playing) scenePause(); else scenePlay(SP.ended ? 0 : SP.i); };
+  $('#scbig').onclick = function () { scenePlay(SP.ended ? 0 : SP.i); };
+  $('#screp').onclick = function () { scenePlay(SP.i, true); };
+  $('#scprev').onclick = function () { var wasP = SP.playing; scenePause(); sceneShow(Math.max(0, SP.i - 1)); if (wasP) scenePlay(SP.i); };
+  $('#scnext').onclick = function () { var wasP = SP.playing; scenePause(); if (SP.i < sc.lines.length - 1) { sceneShow(SP.i + 1); if (wasP) scenePlay(SP.i); } else sceneEnd(); };
+  $$('#scdots i').forEach(function (d) { d.onclick = function () { scenePause(); sceneShow(+d.getAttribute('data-i')); }; });
+  bindSceneSteps(sc);
+  // preload all images of this scene
+  sc.imgs.forEach(function (u) { var im = new Image(); im.src = u; });
+}
+function sceneStepsHtml(sc) {
+  var st = sceneSt(sc.id);
+  return '<h3 class="sech" style="margin-top:18px">看完了？来演一演 👇</h3>' +
+    hubCard('🎤', '① 跟读' + (st.rep ? ' <span class="pill lv">✔ ' + st.rep + ' 分</span>' : ''), '一句一句跟着读，' + (aiOn() ? 'AI 听你读并打分' : '自己听录音对比'), 'data-step="rep"') +
+    hubCard('🎭', '② 角色扮演' + (st.role ? ' <span class="pill lv">✔</span>' : ''), '选一个角色，你来说 TA 的台词', 'data-step="role"') +
+    hubCard('🤖', '③ 自由对话', '和皮皮用英语聊聊这个话题（AI）', 'data-href="#/chat/' + sc.id + '"');
+}
+function bindSceneSteps(sc) { $$('[data-step]', V).forEach(function (b) { b.onclick = function () { TTS.stop(); location.hash = '#/scene/' + sc.id + '/' + b.getAttribute('data-step'); }; }); bindHrefs($('#scsteps')); }
+function sceneShow(i, anim) {
+  var sc = SP.sc, l = sc.lines[i]; SP.i = i; SP.ended = false;
+  var shot = Math.min(sc.imgs.length - 1, l.shot || 0);
+  if (shot !== SP.shot) {
+    var st = $('#stage'); if (!st) return;
+    SP.layer = 1 - SP.layer; var lay = $$('.kb', st)[SP.layer], other = $$('.kb', st)[1 - SP.layer];
+    var img = $('img', lay); img.src = sc.imgs[shot];
+    lay.className = 'kb ' + (SP.layer ? 'b' : 'a') + ' on m' + (shot % 4); other.classList.remove('on');
+    SP.shot = shot;
+    var nx = sc.imgs[shot + 1]; if (nx) { var pre = new Image(); pre.src = nx; }
+  }
+  var c = charOf(l.who), zhOn = S.settings.sceneZh !== false;
+  var b = $('#scb'); if (!b) return;
+  b.innerHTML = '<div class="scwho">' + avatarOf(l.who, 36) + '<b style="color:' + c.color + '">' + esc(l.who) + ' <small>' + esc(c.zh) + '</small></b><button class="ibtn sm" id="scsay">🔊</button></div><div class="scen">' + esc(l.en) + '</div><div class="sczh' + (zhOn ? '' : ' hidden') + '">' + esc(l.zh) + '</div>';
+  if (anim !== false) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
+  $('#scsay').onclick = function () { scenePlay(SP.i, true); };
+  $$('#scdots i').forEach(function (d, k) { d.className = k < i ? 'done' : k === i ? 'cur' : ''; });
+}
+function playLine(sc, l) {
+  return new Promise(function (res) {
+    if (l.audio) TTS.playClip(l.audio, l.en, undefined, 'en-US', res); else TTS.say(l.en, 'en-US').then(res);
+  });
+}
+function scenePlay(i, single) {
+  if (!SP) return; TTS.stop(); var my = ++SP.pid; SP.playing = !single;
+  var big = $('#scbig'); if (big) big.classList.add('hidden');
+  $('#scplay').textContent = single ? '▶ 播放' : '⏸ 暂停'; $('#stage').classList.add('playing');
+  sceneShow(i);
+  playLine(SP.sc, SP.sc.lines[i]).then(function () {
+    if (!SP || my !== SP.pid) return;
+    if (single) { SP.playing = false; return; }
+    setTimeout(function () {
+      if (!SP || my !== SP.pid || !SP.playing) return;
+      if (SP.i < SP.sc.lines.length - 1) scenePlay(SP.i + 1); else sceneEnd();
+    }, 650);
+  });
+}
+function scenePause() { if (!SP) return; SP.pid++; SP.playing = false; TTS.stop(); var p = $('#scplay'); if (p) p.textContent = '▶ 播放'; var st = $('#stage'); if (st) st.classList.remove('playing'); }
+function sceneEnd() {
+  scenePause(); SP.ended = true; $$('#scdots i').forEach(function (d) { d.className = 'done'; });
+  var big = $('#scbig'); if (big) { big.textContent = '↺'; big.classList.remove('hidden'); }
+  $('#scplay').textContent = '↺ 再看一遍';
+  var st = sceneSt(SP.sc.id, true);
+  if (!st.watched) { st.watched = Date.now(); var r = sceneReward(SP.sc.id, 'w', 5, 0); toast('🎬 看完小剧场 ⚡+' + r.xp + ' XP'); sfx.win(); } else st.watched = Date.now();
+  save(); var ss = $('#scsteps'); if (ss) { ss.innerHTML = sceneStepsHtml(SP.sc); bindSceneSteps(SP.sc); ss.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+
+/* ---------- microphone recording (MediaRecorder; iOS Safari → audio/mp4, Chrome/WeChat Android → webm/opus) ---------- */
+var MicRec = {
+  MAX: 15000, st: null, mr: null, chunks: [], t0: 0, timer: null,
+  supported: function () { return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder); },
+  mime: function () { var c = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', 'audio/ogg;codecs=opus']; for (var i = 0; i < c.length; i++) try { if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c[i])) return c[i]; } catch (e) { } return ''; },
+  errText: function (e) {
+    var n = (e && (e.name || e)) || '';
+    if (!MicRec.supported()) return isWX ? '微信里暂时不能录音：请点右上角「···」→「在浏览器打开」，或者直接打字。' : '这个浏览器不能录音，请换 Safari / Chrome，或者直接打字。';
+    if (/NotAllowed|Permission|Security/i.test(n)) return '麦克风没有被允许 🎤\n· iPhone：设置 › Safari 浏览器 › 麦克风 › 允许（微信里：允许微信使用麦克风）\n· 安卓：在浏览器地址栏左边的 🔒 里允许麦克风\n· 还不行就点右上角「···」用浏览器打开，或者直接打字。';
+    if (/NotFound|DevicesNotFound/i.test(n)) return '没有找到麦克风，请检查耳机或设备，或者直接打字。';
+    if (/NotReadable|TrackStart|Abort/i.test(n)) return '麦克风被别的应用占用了（比如在通话或录像），关掉后再试。';
+    return '录音打不开（' + n + '），可以直接打字。';
+  },
+  start: function (onTick, onAuto) {
+    var self = this;
+    if (!this.supported()) return Promise.reject({ name: 'Unsupported' });
+    return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } }).then(function (st) {
+      self.st = st; self.chunks = []; var m = self.mime(), opt = { audioBitsPerSecond: 32000 }; if (m) opt.mimeType = m;
+      try { self.mr = new MediaRecorder(st, opt); } catch (e) { self.mr = new MediaRecorder(st); }
+      self.mr.ondataavailable = function (e) { if (e.data && e.data.size) self.chunks.push(e.data); };
+      self.mr.start(250); self.t0 = Date.now();
+      clearInterval(self.timer);
+      self.timer = setInterval(function () { var ms = Date.now() - self.t0; if (onTick) onTick(ms); if (ms >= self.MAX) { clearInterval(self.timer); if (onAuto) onAuto(); } }, 200);
+    });
+  },
+  stop: function () {
+    var self = this; clearInterval(this.timer);
+    return new Promise(function (res) {
+      var mr = self.mr; if (!mr) return res(null);
+      var ms = Date.now() - self.t0;
+      mr.onstop = function () {
+        var type = (mr.mimeType || self.chunks[0] && self.chunks[0].type || 'audio/webm').split(';')[0];
+        var blob = new Blob(self.chunks, { type: type });
+        if (self.st) self.st.getTracks().forEach(function (t) { t.stop(); });
+        self.mr = null; self.st = null;
+        res({ blob: blob, ms: ms, type: type, url: URL.createObjectURL(blob) });
+      };
+      try { mr.stop(); } catch (e) { res(null); }
+    });
+  },
+  cancel: function () { clearInterval(this.timer); try { if (this.mr) this.mr.stop(); } catch (e) { } if (this.st) this.st.getTracks().forEach(function (t) { t.stop(); }); this.mr = null; this.st = null; }
+};
+function micErrModal(e) { modal(mascot('think', 80) + '<h2>麦克风用不了</h2><p class="sub" style="white-space:pre-line;text-align:left">' + esc(MicRec.errText(e)) + '</p><button class="btn block" id="mok">知道了</button>', function (m, close) { $('#mok', m).onclick = close; }); }
+/* a round mic button bound to MicRec: tap to start, tap to stop (auto-stops at 15 s) */
+function bindMic(btn, onDone, onStart) {
+  var rec = false;
+  function stop() {
+    if (!rec) return; rec = false; btn.classList.remove('rec'); btn.style.removeProperty('--p');
+    MicRec.stop().then(function (r) { if (r) onDone(r); });
+  }
+  btn.onclick = function () {
+    if (rec) return stop();
+    TTS.stop();
+    MicRec.start(function (ms) { btn.style.setProperty('--p', Math.min(100, ms / MicRec.MAX * 100) + '%'); }, stop).then(function () { rec = true; btn.classList.add('rec'); if (onStart) onStart(); }).catch(function (e) { micErrModal(e); });
+  };
+  return { stop: stop, isRec: function () { return rec; } };
+}
+function playBlobUrl(url) { return new Promise(function (res) { TTS.stop(); var a = new Audio(url); a.onended = function () { res(true); }; a.onerror = function () { res(false); }; var p = a.play(); if (p && p.catch) p.catch(function () { res(false); }); }); }
+
+/* ---------- AI client ---------- */
+var AI = {
+  q: null, qTs: 0, ready: null,
+  ident: function () { return Cloud.acct ? Cloud.ident() : {}; },
+  post: function (path, body, ms) {
+    var ctl = window.AbortController ? new AbortController() : null, tm = setTimeout(function () { if (ctl) ctl.abort(); }, ms || 30000);
+    var opt = { method: 'POST', body: body };
+    if (!(body instanceof FormData)) { opt.headers = { 'content-type': 'application/json' }; opt.body = JSON.stringify(Object.assign({}, AI.ident(), body)); }
+    if (ctl) opt.signal = ctl.signal;
+    return fetch(apiBase() + path, opt).then(function (r) { clearTimeout(tm); return r.json().catch(function () { return { ok: false, code: 'http' + r.status, msg: '服务器返回了错误（' + r.status + '）' }; }); },
+      function () { clearTimeout(tm); return { ok: false, code: 'net', msg: '网络连不上，请检查网络后再试' }; });
+  },
+  form: function (blob, meta) { var fd = new FormData(); var ext = /mp4|aac|m4a/.test(blob.type) ? 'm4a' : /ogg/.test(blob.type) ? 'ogg' : /wav/.test(blob.type) ? 'wav' : 'webm'; fd.append('audio', blob, 'rec.' + ext); fd.append('meta', JSON.stringify(Object.assign({}, AI.ident(), meta || {}))); return fd; },
+  quota: function (force) {
+    var self = this;
+    if (!force && this.q && Date.now() - this.qTs < 60000) return Promise.resolve(this.q);
+    return this.post('/api/ai/quota', {}, 12000).then(function (d) { if (d && d.ok) { self.q = d; self.qTs = Date.now(); self.ready = !!d.ready; } return d; });
+  },
+  setLeft: function (kind, d) { if (this.q && d && d.left != null && this.q[kind]) { this.q[kind].left = d.left; } }
+};
+function aiOn() { return AI.ready !== false && navigator.onLine !== false; }
+function sttScore(target, blob) {
+  return AI.post('/api/ai/stt', AI.form(blob, { target: target }), 30000).then(function (d) {
+    AI.setLeft('stt', d);
+    if (!d || !d.ok) return { err: d && d.msg || 'AI 打分暂时不可用', code: d && d.code };
+    var sc = lcsMarks(target, d.heard || ''); sc.heard = d.heard || ''; return sc;
+  });
+}
+function marksHtml(sc) { return sc.words.map(function (w, i) { return '<span class="' + (sc.marks[i] ? 'ok' : 'miss') + '">' + esc(w) + '</span>'; }).join(' '); }
+
+/* ---------- step 1: 跟读 ---------- */
+function viewSceneRepeat(sc) {
+  var R = { i: 0, scores: [], rec: null }, vt = VT;
+  AI.quota().then(function () { var n = $('#repai'); if (n) n.innerHTML = repAiNote(); });
+  function repAiNote() { var q = AI.q && AI.q.stt; return aiOn() && q ? (q.left > 0 ? '🤖 AI 听你读并打分（今天还剩 ' + q.left + ' 次）' : '今天 AI 打分次数用完了，用「自己听」的方式练吧') : SR ? '用浏览器语音识别打分' : '录下来自己听，和原声比一比'; }
+  function draw() {
+    if (vt !== VT) return;
+    var l = sc.lines[R.i], c = charOf(l.who);
+    V.innerHTML = '<div class="page scpage"><div class="row">' + backBtn('#/scene/' + sc.id) + '<div class="grow"><b class="sctitle">🎤 跟读 · ' + esc(sc.title) + '</b><div class="sub" id="repai">' + repAiNote() + '</div></div></div>' +
+      '<div class="lbar"><i style="width:' + Math.round(R.i * 100 / sc.lines.length) + '%"></i></div>' +
+      '<div class="stage small"><div class="kb a on m' + (l.shot % 4) + '"><img src="' + sc.imgs[Math.min(sc.imgs.length - 1, l.shot)] + '" alt=""></div></div>' +
+      '<div class="scbubble"><div class="scwho">' + avatarOf(l.who, 36) + '<b style="color:' + c.color + '">' + esc(l.who) + '</b><button class="ibtn sm" id="rsay">🔊</button><button class="ibtn sm" id="rslow">🐢</button></div><div class="scen" id="rtxt">' + esc(l.en) + '</div><div class="sczh">' + esc(l.zh) + '</div></div>' +
+      '<div class="microw"><button class="micbtn" id="rmic" aria-label="录音">🎤</button><div class="sub" id="rhint">先听一遍，再点 🎤 跟着读（最多 15 秒）</div></div>' +
+      '<div id="rres"></div><div class="fbtns" style="display:flex;gap:12px;margin-top:14px"><button class="btn ghost" id="rskip">跳过</button><button class="btn grow" id="rnext" disabled>下一句 ›</button></div></div>';
+    bindBack();
+    $('#rsay').onclick = function () { playLine(sc, l); };
+    $('#rslow').onclick = function () { TTS.stop(); TTS.say(l.en, 'en-US', 0.6); };
+    $('#rskip').onclick = function () { R.scores[R.i] = null; nextLine(); };
+    $('#rnext').onclick = nextLine;
+    bindMic($('#rmic'), function (r) { judge(l, r); }, function () { $('#rhint').textContent = '正在录音… 读完再点一下 ⏹'; });
+    setTimeout(function () { if (vt === VT) playLine(sc, l); }, 300);
+  }
+  function judge(l, r) {
+    var res = $('#rres'), hint = $('#rhint'); hint.textContent = '再点 🎤 可以重新读';
+    var own = '<button class="btn sm ghost" id="rmine">▶ 听我的录音</button>';
+    var useAI = aiOn() && AI.q && AI.q.stt && AI.q.stt.left > 0 && r.ms > 500;
+    function selfCheck(note) {
+      res.innerHTML = '<div class="card center">' + (note ? '<div class="sub">' + esc(note) + '</div>' : '') + '<p>听听自己读得像不像？</p>' + own + ' <button class="btn sm ghost" id="rorig">🔊 原声</button><div style="display:flex;gap:10px;margin-top:12px"><button class="btn sm ghost grow" id="rbad">再练练</button><button class="btn sm grow" id="rgood">👍 读得好</button></div></div>';
+      $('#rmine').onclick = function () { playBlobUrl(r.url); }; $('#rorig').onclick = function () { playLine(sc, l); };
+      $('#rbad').onclick = function () { res.innerHTML = ''; };
+      $('#rgood').onclick = function () { R.scores[R.i] = 80; sfx.good(); $('#rnext').disabled = false; nextLine(); };
+    }
+    function show(sc2) {
+      R.scores[R.i] = Math.max(R.scores[R.i] || 0, sc2.score);
+      var good = sc2.score >= 80; if (good) sfx.good(); else sfx.bad && sfx.tap();
+      res.innerHTML = '<div class="card center"><div class="bigscore ' + (good ? 'g' : sc2.score >= 50 ? 'y' : 'r') + '">' + sc2.score + ' 分</div><div class="marks">' + marksHtml(sc2) + '</div>' + (sc2.heard ? '<div class="sub">皮皮听到：' + esc(sc2.heard) + '</div>' : '') + '<div class="sub">' + (good ? '太棒了！' : '灰色的词再读清楚一点～') + '</div><div style="margin-top:8px">' + own + '</div></div>';
+      $('#rmine').onclick = function () { playBlobUrl(r.url); };
+      $('#rnext').disabled = false;
+    }
+    if (useAI) {
+      res.innerHTML = '<div class="card center"><div class="thinking">' + mascot('think', 56) + '<span>皮皮在听…</span></div></div>';
+      sttScore(l.en, r.blob).then(function (x) { if (vt !== VT || !$('#rres')) return; if (x.err) selfCheck(x.err); else show(x); });
+    } else if (SR && !isWX) {
+      selfCheck('');
+    } else selfCheck('');
+  }
+  function nextLine() {
+    if (vt !== VT) return; TTS.stop();
+    if (R.i < sc.lines.length - 1) { R.i++; draw(); return; }
+    var got = R.scores.filter(function (x) { return x != null; }), avg = got.length ? Math.round(got.reduce(function (a, b) { return a + b; }, 0) / got.length) : 0;
+    var st = sceneSt(sc.id, true), rw = got.length ? sceneReward(sc.id, 'repD', avg >= 80 ? 15 : 10, 5) : { xp: 0, gems: 0 };
+    if (got.length) { st.rep = Math.max(st.rep || 0, avg || 1); D().shadow = (D().shadow || 0) + got.length; S.stats.shadow = (S.stats.shadow || 0) + got.length; st.repD = 1; save(); }
+    sfx.win(); confetti(60);
+    V.innerHTML = '<div class="page center scpage">' + mascot('cheer', 130) + '<h1>跟读完成！</h1><p class="sub">读了 ' + got.length + ' / ' + sc.lines.length + ' 句' + (avg ? ' · 平均 ' + avg + ' 分' : '') + '</p><div class="rstats"><div class="rstat y"><small>经验 XP</small><b>⚡ ' + rw.xp + '</b></div>' + (rw.gems ? '<div class="rstat b"><small>宝石</small><b>💎 ' + rw.gems + '</b></div>' : '') + '</div>' +
+      '<button class="btn block" data-href="#/scene/' + sc.id + '/role" style="margin-top:16px">下一步：🎭 角色扮演</button><button class="btn block ghost" data-href="#/scene/' + sc.id + '" style="margin-top:12px">回到小剧场</button></div>';
+    bindHrefs(V);
+  }
+  draw();
+}
+
+/* ---------- step 2: 角色扮演 ---------- */
+function viewSceneRole(sc) {
+  var whos = []; sc.lines.forEach(function (l) { if (whos.indexOf(l.who) < 0) whos.push(l.who); });
+  var h = '<div class="page scpage"><div class="row">' + backBtn('#/scene/' + sc.id) + '<div class="grow"><b class="sctitle">🎭 角色扮演 · ' + esc(sc.title) + '</b><div class="sub">选一个角色，轮到 TA 说话时，你来说！</div></div></div><div class="rolepick">' +
+    whos.map(function (w) { var c = charOf(w), n = sc.lines.filter(function (l) { return l.who === w; }).length; return '<button class="rolebtn" data-who="' + w + '" style="--c:' + c.color + '">' + avatarOf(w, 64) + '<b>' + esc(w) + '</b><small>' + esc(c.zh) + ' · ' + n + ' 句</small></button>'; }).join('') +
+    '</div><label class="tog"><input type="checkbox" id="rhide"> 挑战模式：先隐藏我的英文台词</label></div>';
+  V.innerHTML = h; bindBack();
+  $$('[data-who]', V).forEach(function (b) { b.onclick = function () { run(b.getAttribute('data-who'), $('#rhide').checked); }; });
+  function run(me, hide) {
+    var G = { i: 0, recs: {}, pid: 0 }, vt = VT;
+    function draw() {
+      if (vt !== VT) return;
+      var l = sc.lines[G.i], c = charOf(l.who), mine = l.who === me, my = ++G.pid;
+      V.innerHTML = '<div class="page scpage"><div class="row">' + backBtn('#/scene/' + sc.id + '/role') + '<div class="grow"><b class="sctitle">🎭 我是 ' + esc(me) + '</b><div class="sub">第 ' + (G.i + 1) + ' / ' + sc.lines.length + ' 句</div></div></div>' +
+        '<div class="stage small"><div class="kb a on m' + (l.shot % 4) + '"><img src="' + sc.imgs[Math.min(sc.imgs.length - 1, l.shot)] + '" alt=""></div></div>' +
+        '<div class="scbubble' + (mine ? ' mine' : '') + '"><div class="scwho">' + avatarOf(l.who, 36) + '<b style="color:' + c.color + '">' + esc(l.who) + (mine ? ' <span class="pill req">轮到你啦</span>' : '') + '</b></div><div class="scen' + (mine && hide ? ' blur' : '') + '" id="gtxt">' + esc(l.en) + '</div><div class="sczh">' + esc(l.zh) + '</div></div>' +
+        (mine ? '<div class="microw"><button class="micbtn" id="gmic">🎤</button><div class="sub" id="ghint">' + (hide ? '看着中文说英语，点一下英文可以偷看' : '点 🎤 说出你的台词') + '</div></div><div id="gres"></div><div style="display:flex;gap:10px;margin-top:12px"><button class="btn ghost" id="ghelp">🔊 提示</button><button class="btn grow" id="gnext"' + (G.recs[G.i] ? '' : ' disabled') + '>下一句 ›</button></div>'
+          : '<div class="sub center" style="margin-top:14px">' + esc(c.zh) + ' 在说话… 👂</div><div style="display:flex;gap:10px;margin-top:12px"><button class="btn ghost" id="gagain">🔁 再听</button><button class="btn grow" id="gnext">下一句 ›</button></div>') + '</div>';
+      bindBack();
+      if (mine) {
+        $('#gtxt').onclick = function () { this.classList.remove('blur'); };
+        $('#ghelp').onclick = function () { playLine(sc, l); };
+        bindMic($('#gmic'), function (r) {
+          G.recs[G.i] = r; $('#gnext').disabled = false;
+          var res = $('#gres'); res.innerHTML = '<div class="card center"><button class="btn sm ghost" id="gplay">▶ 听我说的</button></div>';
+          $('#gplay').onclick = function () { playBlobUrl(r.url); };
+          if (aiOn() && AI.q && AI.q.stt && AI.q.stt.left > 0 && r.ms > 500) {
+            res.insertAdjacentHTML('beforeend', '<div class="thinking center" id="gth">' + mascot('think', 40) + '<span>皮皮在听…</span></div>');
+            sttScore(l.en, r.blob).then(function (x) { var th = $('#gth'); if (th) th.remove(); if (vt !== VT || my !== G.pid || x.err) return; G.recs[G.i].score = x.score; res.insertAdjacentHTML('beforeend', '<div class="marks">' + marksHtml(x) + '</div><div class="sub">' + (x.score >= 80 ? '说得真好！' : '再大声、清楚一点会更好～') + '</div>'); });
+          }
+        }, function () { $('#ghint').textContent = '正在录音… 说完再点一下 ⏹'; });
+      } else {
+        $('#gagain').onclick = function () { playLine(sc, l); };
+        playLine(sc, l).then(function () { if (my !== G.pid) return; setTimeout(function () { if (my === G.pid) nextL(); }, 700); });
+      }
+      $('#gnext').onclick = nextL;
+    }
+    function nextL() { if (vt !== VT) return; TTS.stop(); if (G.i < sc.lines.length - 1) { G.i++; draw(); } else done(); }
+    function done() {
+      var n = Object.keys(G.recs).length, st = sceneSt(sc.id, true), rw = sceneReward(sc.id, 'role', 10, 5); st.role = Date.now(); save(); sfx.win(); confetti(60);
+      V.innerHTML = '<div class="page center scpage">' + mascot('cheer', 130) + '<h1>表演结束！👏</h1><p class="sub">你扮演了 ' + esc(me) + '，说了 ' + n + ' 句台词</p><div class="rstats"><div class="rstat y"><small>经验 XP</small><b>⚡ ' + rw.xp + '</b></div>' + (rw.gems ? '<div class="rstat b"><small>宝石</small><b>💎 ' + rw.gems + '</b></div>' : '') + '</div>' +
+        (n ? '<button class="btn block blue" id="gshow" style="margin-top:16px">▶ 听听我们的完整表演</button>' : '') +
+        '<button class="btn block" data-href="#/chat/' + sc.id + '" style="margin-top:12px">下一步：🤖 和皮皮自由对话</button><button class="btn block ghost" data-href="#/scene/' + sc.id + '" style="margin-top:12px">回到小剧场</button></div>';
+      bindHrefs(V);
+      var sb = $('#gshow'); if (sb) sb.onclick = function () {
+        var my = ++G.pid; sb.textContent = '⏸ 播放中…';
+        sc.lines.reduce(function (p, l, k) { return p.then(function () { if (my !== G.pid) return; return vt !== VT ? null : G.recs[k] ? playBlobUrl(G.recs[k].url) : l.who === me ? null : playLine(sc, l); }); }, Promise.resolve()).then(function () { if (sb) sb.textContent = '▶ 再听一遍'; });
+      };
+    }
+    draw();
+  }
+}
+
+/* ---------- AI chat with Pip ---------- */
+var CHAT = null;
+function chatCtx(sid) {
+  var sc = SCN_IDX[sid];
+  if (sc) return { sid: sid, title: sc.title, unit: sc.zh, words: sc.words, patterns: sc.patterns, lines: sc.lines.map(function (l) { return l.who + ': ' + l.en; }), ask: sc.ask, emoji: sc.emoji };
+  var u = UNITS.filter(function (x) { return x.id === sid; })[0] || focusUnit() || (currentLesson(false) || {})._u || MAIN_UNITS[0];
+  if (!u) return { sid: 'free', title: 'Free talk', unit: '', words: [], patterns: [], lines: [], ask: "Hi! I'm Pip. What did you do today?", emoji: '💬' };
+  var keys = []; u.lessons.forEach(function (l) { (l.key || []).forEach(function (k) { if (keys.length < 6) keys.push(k); }); });
+  var ws = (u.words || []).slice(0, 14).map(function (w) { return w.w; });
+  var q = keys.filter(function (k) { return /\?$/.test(k); })[0];
+  return { sid: u.id, title: u.title, unit: 'Unit ' + u.no + ' ' + u.zh, words: ws, patterns: keys, lines: [], ask: "Hi! I'm Pip. Let's talk about " + u.title + ". " + (q || 'What do you like about it?'), emoji: u.emoji || '💬' };
+}
+function viewChatPick() {
+  var mine = (SCN && SCN.scenes || []).filter(sceneBookOk);
+  var h = '<div class="page"><div class="row">' + backBtn('#/practice') + '<h1 class="h grow" style="margin:0">🤖 和皮皮聊天</h1></div>' + bubble('选一个话题，用英语和我聊天吧！可以说，也可以打字。', 'happy', 70) +
+    '<h3 class="sech">情景话题</h3>' + mine.map(function (s) { return hubCard(s.emoji, esc(s.title), esc(s.zh), 'data-href="#/chat/' + s.id + '"'); }).join('') +
+    '<h3 class="sech">按单元聊</h3>' + MAIN_UNITS.filter(function (u) { return !u.isRevision; }).map(function (u) { return hubCard(u.emoji || '📘', 'Unit ' + u.no + ' ' + esc(u.title), esc(u.zh), 'data-href="#/chat/' + u.id + '"'); }).join('') + '</div>';
+  V.innerHTML = h; bindBack();
+}
+function viewChat(sid) {
+  if (!sid) return viewChatPick();
+  if (!SCN && /-u\d/.test(sid)) { loadScenes().then(render); return; }
+  var ctx = chatCtx(sid);
+  if (!CHAT || CHAT.sid !== ctx.sid) CHAT = { sid: ctx.sid, ctx: ctx, msgs: [{ r: 'a', t: ctx.ask }], busy: false, typing: false, first: true };
+  var h = '<div class="chatpage"><div class="chathead">' + backBtn(SCN_IDX[sid] ? '#/scene/' + sid : '#/chat') + '<div class="grow"><b>' + esc(ctx.emoji + ' ' + ctx.title) + '</b><div class="sub" id="cquota">和皮皮用英语聊天</div></div><button class="ibtn sm" id="cnew" title="重新开始">↺</button></div>' +
+    '<div class="chatlog" id="clog"></div>' +
+    '<div class="chatfoot"><div class="cinput hidden" id="ctext"><input id="cin" maxlength="200" placeholder="用英语打字…" autocomplete="off" enterkeyhint="send"><button class="btn sm" id="csend">发送</button></div>' +
+    '<div class="cmicrow"><button class="ibtn" id="ckb" title="打字">⌨️</button><button class="micbtn" id="cmic">🎤</button><div class="sub cmh" id="chint">点 🎤 说英语（15 秒内）</div></div></div></div>';
+  V.innerHTML = h; bindBack(); fitChat();
+  drawLog();
+  if (CHAT.first) { CHAT.first = false; setTimeout(function () { TTS.say(ctx.ask, 'en-US'); }, 400); }
+  $('#cnew').onclick = function () { CHAT = null; viewChat(sid); };
+  $('#ckb').onclick = function () { var t = $('#ctext'); t.classList.toggle('hidden'); if (!t.classList.contains('hidden')) $('#cin').focus(); };
+  $('#csend').onclick = sendText;
+  $('#cin').onkeydown = function (e) { if (e.key === 'Enter') sendText(); };
+  if (!MicRec.supported()) { $('#ctext').classList.remove('hidden'); $('#chint').textContent = isWX ? '微信里不能录音，请打字（或右上角「···」用浏览器打开）' : '这个浏览器不能录音，请打字'; $('#cmic').disabled = true; }
+  else bindMic($('#cmic'), function (r) {
+    if (r.ms < 600) { toast('说得太短啦，再说一次'); return; }
+    send({ blob: r.blob });
+  }, function () { $('#chint').textContent = '正在听… 说完再点一下 ⏹'; });
+  refreshQuota();
+  function refreshQuota() {
+    AI.quota().then(function (d) {
+      var el = $('#cquota'); if (!el) return;
+      if (!d || !d.ok) { el.textContent = '连不上 AI 服务器（' + ((d && d.msg) || '网络') + '）'; return; }
+      if (!d.ready) { el.textContent = 'AI 还没开通，请家长稍后再试'; return; }
+      el.innerHTML = '今天还能聊 <b>' + d.chat.left + '</b> / ' + d.chat.max + ' 次' + (d.login ? '' : ' · <a href="#/me">登录班级账号可以聊更多</a>');
+    });
+  }
+  function drawLog() {
+    var log = $('#clog'); if (!log) return;
+    log.innerHTML = CHAT.msgs.map(function (m, k) {
+      if (m.r === 'a') return '<div class="cmsg pip"><span class="cav">' + mascot(m.mood || 'happy', 40) + '</span><div class="cb"><div>' + esc(m.t) + '</div><button class="ibtn sm csay" data-k="' + k + '">🔊</button></div></div>';
+      if (m.r === 'u') return '<div class="cmsg me"><div class="cb"><div>' + esc(m.t) + '</div>' + (m.stars != null ? '<div class="cstars">' + '★★★'.slice(0, m.stars) + '<i>' + '★★★'.slice(m.stars) + '</i></div>' : '') + (m.fix ? '<div class="cfix">✏️ ' + esc(m.fix) + '</div>' : '') + (m.tip ? '<div class="ctip">💡 ' + esc(m.tip) + '</div>' : '') + '</div></div>';
+      if (m.r === 'e') return '<div class="cmsg sys">' + esc(m.t) + '</div>';
+      return '';
+    }).join('') + (CHAT.busy ? '<div class="cmsg pip"><span class="cav">' + mascot('think', 40) + '</span><div class="cb typing"><i></i><i></i><i></i></div></div>' : '');
+    $$('.csay', log).forEach(function (b) { b.onclick = function () { TTS.one(CHAT.msgs[+b.getAttribute('data-k')].t, 'en-US'); }; });
+    log.scrollTop = log.scrollHeight;
+    var pg = $('.chatpage'); if (pg) setTimeout(function () { var last = log.lastElementChild; if (last) last.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 30);
+  }
+  function sendText() { var v = $('#cin').value.trim(); if (!v) return; if (!/[A-Za-z]/.test(v)) { toast('试试用英语说哦 😊'); } $('#cin').value = ''; send({ text: v }); }
+  function send(o) {
+    if (CHAT.busy) return; CHAT.busy = true;
+    var my = CHAT;
+    var meta = { title: ctx.title, unit: ctx.unit, words: ctx.words, patterns: ctx.patterns, lines: ctx.lines, hist: CHAT.msgs.filter(function (m) { return m.r === 'a' || m.r === 'u'; }).slice(-8).map(function (m) { return { r: m.r, t: m.t }; }) };
+    var um = null;
+    if (o.text) { um = { r: 'u', t: o.text }; CHAT.msgs.push(um); }
+    else { um = { r: 'u', t: '🎤 …' }; CHAT.msgs.push(um); }
+    drawLog(); $('#chint').textContent = '皮皮在想…';
+    var p = o.blob ? AI.post('/api/ai/chat', AI.form(o.blob, meta), 40000) : AI.post('/api/ai/chat', Object.assign(meta, { text: o.text }), 40000);
+    p.then(function (d) {
+      if (CHAT !== my) return; CHAT.busy = false; AI.setLeft('chat', d);
+      if (!d || !d.ok) { CHAT.msgs.splice(CHAT.msgs.indexOf(um), 1); CHAT.msgs.push({ r: 'e', t: (d && d.msg) || 'AI 暂时不可用' }); drawLog(); refreshQuota(); $('#chint').textContent = '点 🎤 说英语（15 秒内）'; return; }
+      if (d.empty || !d.heard) { CHAT.msgs.splice(CHAT.msgs.indexOf(um), 1); CHAT.msgs.push({ r: 'e', t: '皮皮没听清 👂 请靠近一点、大声一点再说一次，或者点 ⌨️ 打字。' }); drawLog(); $('#chint').textContent = '点 🎤 再说一次'; return; }
+      um.t = d.heard; um.stars = d.stars; um.tip = d.tip_zh; um.fix = d.fix && norm(d.fix) !== norm(d.heard) ? d.fix : '';
+      CHAT.msgs.push({ r: 'a', t: d.reply, mood: d.stars >= 2 ? 'happy' : 'idle' });
+      drawLog(); refreshQuota();
+      $('#chint').textContent = '点 🎤 接着说';
+      TTS.one(d.reply, 'en-US');
+      var xp = addXP(Math.max(1, d.stars || 0)); D().chat = (D().chat || 0) + 1; S.stats.chats = (S.stats.chats || 0) + 1; save(); Cloud.markDirty();
+      if (d.stars >= 3) sfx.good();
+      if (d.left === 0) CHAT.msgs.push({ r: 'e', t: '今天的 AI 对话次数用完啦，明天再来找皮皮聊天吧！🌙' });
+      if (xp) toast('⚡ +' + xp + ' XP', 1200);
+    });
+  }
+}
+
+window.fitChat = fitChat;
+function fitChat() {
+  var pg = $('.chatpage'); if (!pg) return;
+  var nav = $('#bottom'), nb = nav && getComputedStyle(nav).display !== 'none' ? nav.offsetHeight : 0;
+  var top = pg.getBoundingClientRect().top + (window.scrollY || 0);
+  pg.style.height = Math.max(340, (window.innerHeight || 640) - top - nb) + 'px';
+}
+window.addEventListener('resize', function () { fitChat(); });
+/* ---------- 讲讲我错在哪 ---------- */
+function explainWrong(q, ans) {
+  var qt = qText(q) + (q.opts && q.t !== 'pic' && q.t !== 'match' ? '（选项：' + q.opts.map(function (o) { return typeof o === 'object' ? (o.w || '') : o; }).join(' / ') + '）' : '');
+  var body = { qid: qKey(q), q: String(qt).slice(0, 300), right: String(rightText(q) || '').slice(0, 160), ans: String(ans || '').slice(0, 160), exp: String(q.exp || '').slice(0, 300) };
+  modal('<div class="rephead">' + mascot('think', 64) + '<div><h2>讲讲我错在哪</h2><p class="sub">皮皮老师来帮你看看 🧐</p></div></div><div class="repq">' + esc(body.q).slice(0, 200) + '</div>' +
+    '<div class="exbox" id="exbox"><div class="thinking">' + mascot('think', 40) + '<span>皮皮在想…</span></div></div><div class="sub" id="exleft"></div><button class="btn block" id="exok" style="margin-top:12px">懂了！</button>', function (m, close) {
+      $('#exok', m).onclick = function () { TTS.stop(); close(); };
+      AI.post('/api/ai/explain', body, 40000).then(function (d) {
+        AI.setLeft('explain', d); var box = $('#exbox', m); if (!box) return;
+        if (!d || !d.ok) { box.innerHTML = '<p class="sub">' + esc((d && d.msg) || '讲解暂时不可用') + '</p>' + (q.exp ? '<p>' + esc(q.exp) + '</p>' : ''); return; }
+        box.innerHTML = '<p>' + esc(d.text) + '</p><button class="ibtn sm" id="exsay">🔊</button>';
+        $('#exsay', m).onclick = function () { TTS.mixed(d.text); };
+        $('#exleft', m).textContent = d.cached ? '（这题讲过啦，不扣次数）' : d.left != null ? '今天还能讲解 ' + d.left + ' 次' : '';
+      });
+    });
+}
+
 window.__E6 = {
   sess: function () { return session; }, S: function () { return S; }, B: function () { return B; }, LESSONS: function () { return LESSONS; }, P: P,
   startSession: startSession, startLesson: function (id) { startLesson(LESSONS[id]); }, gen: GEN, leagueBoard: leagueBoard, render: render, save: save,
   setState: function (fn) { fn(S); save(); render(); },
-  Cloud: Cloud, cloudStats: cloudStats, TTS: TTS, Eye: Eye, Reports: Reports, startMock: startMock, startDictation: startDictation, missStats: missStats, ahash: ahash, shWeekId: shWeekId, finishSession: function () { finishSession(); }
+  Cloud: Cloud, cloudStats: cloudStats, AI: AI, MicRec: MicRec, SCN: function () { return SCN; }, explainWrong: explainWrong, TTS: TTS, Eye: Eye, Reports: Reports, startMock: startMock, startDictation: startDictation, missStats: missStats, ahash: ahash, shWeekId: shWeekId, finishSession: function () { finishSession(); }
 };
 boot();
 })();
