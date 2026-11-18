@@ -455,3 +455,4 @@ body.theme-night .card,body.theme-night .hub,body.theme-night .sitem,body.theme-
 .a2steps ol{margin:6px 0 0;padding-left:20px;line-height:1.7}
 .kbd{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 4px;background:#fff}
 body.theme-night .seg{background:#22343c}body.theme-night .seg button.on{background:#131f24}
+.hint{display:block;color:var(--mute);font-size:12px;margin:-6px 0 10px}

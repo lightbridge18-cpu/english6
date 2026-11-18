@@ -32,7 +32,7 @@ function defState() {
     v: 3, xp: 0, gems: 100, hearts: 5, heartTs: Date.now(), streak: 0, bestStreak: 0, lastDay: null, days: {}, ach: {}, claimed: {}, wordp: 0,
     goal: 0, course: 'book', books: {}, freezes: 0, freezeDays: {}, owned: {}, outfit: '', theme: '', boostUntil: 0, badges: {},
     league: { week: '', tier: 0, result: null, best: 0 }, offUntil: { listen: 0, speak: 0 }, streakShown: '', name: '',
-    settings: { rate: 0.9, zh: true, sfx: true, voice: '', autoExplain: false, haptics: true },
+    settings: { rate: 0.9, zh: true, sfx: true, accent: 'us', autoExplain: false, haptics: true },
     parent: { pin: '', limit: 0, extra: {}, unlockAll: false },
     stats: { lessons: 0, perfect: 0, maxCombo: 0, reviewed: 0, shadow: 0, reads: 0, chal: 0, chests: 0, spoken: 0, listened: 0, quests: 0, promos: 0, buys: 0, goalDays: 0 },
     unlock: ''
@@ -94,13 +94,42 @@ var sfx = {
 var TTS = {
   ok: 'speechSynthesis' in window, voices: [], token: 0,
   init: function () { if (!this.ok) return; var self = this; var f = function () { try { self.voices = speechSynthesis.getVoices() || []; } catch (e) { } }; f(); if (speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', f); else speechSynthesis.onvoiceschanged = f; },
+  // 精选英语发音：只留美音/英音里清晰柔和的女声，屏蔽系统里的怪声（Bubbles、Zarvox 等）
+  BAD: /albert|bad ?news|bahh|bells|boing|bubbles|cellos|good ?news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|grandma|grandpa|eddy|flo\b|reed|rocko|sandy|shelley|hysterical|deranged|pipe|novelty|eloquence/i,
+  RANK: {
+    us: [/ava.*(premium|enhanced|natural|online)/i, /jenny.*(natural|online)/i, /aria.*(natural|online)/i, /emma.*(natural|online)/i, /ava/i, /samantha.*(premium|enhanced)/i, /google us english/i, /en-us-x-(sfg|iob|iog|tpc|tpf)/i, /allison/i, /samantha/i, /susan/i, /zira/i, /female/i],
+    gb: [/sonia.*(natural|online)/i, /libby.*(natural|online)/i, /maisie.*(natural|online)/i, /(kate|serena|stephanie).*(premium|enhanced)/i, /google uk english female/i, /en-gb-x-(gba|gbc|gbg)/i, /serena/i, /kate/i, /stephanie/i, /martha/i, /hazel/i, /susan/i, /female/i]
+  },
+  MALE: /\b(guy|andrew|brian|christopher|eric|roger|steffan|ryan|thomas|daniel|arthur|oliver|alex|aaron|tom|evan|nathan|david|mark|george|male)\b|en-(us|gb)-x-(iol|iom|tpd|rjs|gbd)/i,
+  norm: function (v) { return (v.lang || '').replace('_', '-').toLowerCase(); },
+  best: function (acc) {
+    var self = this, code = acc === 'gb' ? 'en-gb' : 'en-us';
+    var c = this.voices.filter(function (v) { return self.norm(v).indexOf(code) === 0 && !self.BAD.test(v.name); });
+    if (!c.length) return null;
+    var r = this.RANK[acc] || this.RANK.us;
+    for (var i = 0; i < r.length; i++) { var m = c.filter(function (v) { return r[i].test(v.name + ' ' + (v.voiceURI || '')); }); if (m.length) return m[0]; }
+    var f = c.filter(function (v) { return !self.MALE.test(v.name + ' ' + (v.voiceURI || '')); });
+    return f[0] || c[0];
+  },
   pick: function (lang) {
-    var vs = this.voices; if (!vs.length) return null;
-    if (lang.indexOf('en') === 0 && S.settings.voice) { for (var i = 0; i < vs.length; i++) if (vs[i].name === S.settings.voice) return vs[i]; }
-    var pref = lang.indexOf('en') === 0 ? ['en-US', 'en_US', 'en-GB', 'en'] : ['zh-CN', 'zh_CN', 'cmn', 'zh'];
+    var vs = this.voices; if (!vs.length) return null; var self = this;
+    if (lang.indexOf('en') === 0) {
+      var acc = S.settings.accent === 'gb' ? 'gb' : 'us';
+      var v = this.best(acc) || this.best(acc === 'gb' ? 'us' : 'gb');
+      if (v) return v;
+      var any = vs.filter(function (x) { return self.norm(x).indexOf('en') === 0 && !self.BAD.test(x.name); });
+      return any[0] || null;
+    }
+    var pref = ['zh-cn', 'cmn', 'zh'];
     for (var p = 0; p < pref.length; p++) {
-      var c = vs.filter(function (v) { return (v.lang || '').replace('_', '-').toLowerCase().indexOf(pref[p].replace('_', '-').toLowerCase()) === 0; });
-      if (c.length) { var good = c.filter(function (v) { return /natural|neural|google|samantha|xiaoxiao|tingting|online/i.test(v.name); }); return (good[0] || c[0]); }
+      var c = vs.filter(function (v) { return self.norm(v).indexOf(pref[p]) === 0; });
+      if (c.length) {
+        var zr = [/xiaoxiao/i, /xiaoyi/i, /xiaohan|xiaomo|xiaorui|xiaoshuang/i, /tingting.*(premium|enhanced)/i, /google.*(普通话|mandarin|中国)/i, /tingting/i, /lili|yaoyao|huihui|lanlan/i, /cmn-cn-x-(ccc|ssa)/i, /female|女/i];
+        var nm = function (v) { return v.name + ' ' + (v.voiceURI || ''); };
+        for (var z = 0; z < zr.length; z++) { var zm = c.filter(function (v) { return zr[z].test(nm(v)); }); if (zm.length) return zm[0]; }
+        var zf = c.filter(function (v) { return !/yunxi|yunyang|yunjian|yunze|yunhao|kangkang|li-mu|liang|male|男|cmn-cn-x-(ccd|cce)/i.test(nm(v)); });
+        return zf[0] || c[0];
+      }
     }
     return null;
   },
@@ -1531,9 +1560,10 @@ function viewMe() {
   var wk = ['日', '一', '二', '三', '四', '五', '六'];
   h += '<h3 class="sech">本周经验</h3><div class="card"><div class="week">' + days.map(function (x, j) { return '<div class="col' + (j === 6 ? ' today' : '') + '"><b>' + x[1] + '</b><i style="height:' + Math.round(x[1] * 100 / mx) + '%"></i><small>' + (j === 6 ? '今天' : '周' + wk[new Date(x[0] + 'T00:00:00').getDay()]) + '</small></div>'; }).join('') + '</div></div>';
   h += '<h3 class="sech">成就 ' + Object.keys(S.ach).filter(function (k) { return ACH.some(function (a) { return a[0] === k; }); }).length + '/' + ACH.length + '</h3><div class="ach">' + ACH.map(function (a) { return '<div class="a' + (S.ach[a[0]] ? '' : ' no') + '"><span class="e">' + a[1] + '</span><b>' + a[2] + '</b><small>' + esc(a[3]) + '</small></div>'; }).join('') + '</div>';
-  var vs = (TTS.voices || []).filter(function (v) { return /^en/i.test(v.lang); });
+  var vUS = TTS.best('us'), vGB = TTS.best('gb'), acc = S.settings.accent === 'gb' ? 'gb' : 'us';
   h += '<h3 class="sech">设置</h3><div class="card form"><label>英语朗读语速</label><select id="srate"><option value="0.7">慢 0.7</option><option value="0.8">较慢 0.8</option><option value="0.9">稍慢 0.9</option><option value="1">正常 1.0</option></select>' +
-    '<label>英语发音（' + (vs.length ? vs.length + ' 个可选' : '浏览器未提供英语语音') + '）</label><select id="svoice"><option value="">自动（优先美式 en-US）</option>' + vs.map(function (v) { return '<option' + (v.name === S.settings.voice ? ' selected' : '') + '>' + esc(v.name) + '</option>'; }).join('') + '</select>' +
+    '<label>英语发音</label><div class="seg" id="sacc"><button data-acc="us" class="' + (acc === 'us' ? 'on' : '') + '">🇺🇸 美音</button><button data-acc="gb" class="' + (acc === 'gb' ? 'on' : '') + '">🇬🇧 英音</button></div>' +
+    '<small class="hint">英语、中文都自动选用这台设备上最清晰柔和的女声' + ((acc === 'gb' ? vGB : vUS) ? '' : '（这台设备暂未提供，用默认英语声音）') + '</small>' +
     '<label class="chk"><input type="checkbox" id="ssfx"' + (S.settings.sfx ? ' checked' : '') + '> 音效</label><label class="chk"><input type="checkbox" id="shap"' + (S.settings.haptics !== false ? ' checked' : '') + '> 振动反馈（支持的手机）</label><label class="chk"><input type="checkbox" id="sauto"' + (S.settings.autoExplain ? ' checked' : '') + '> 打开讲解时自动朗读</label>' +
     '<button class="btn sm ghost" id="stest" style="margin-top:8px">🔊 试听</button></div>';
   if (BOOKS.length > 1) h += '<h3 class="sech">我的课程</h3>' + BOOKS.map(function (b) { return hubCard(b.emoji || '📘', esc(b.title) + (b.id === S.course ? ' ✔' : ''), esc(b.sub || ''), 'data-course2="' + b.id + '"'); }).join('');
@@ -1543,7 +1573,7 @@ function viewMe() {
   bindAcctCard(); $('#a2hs').onclick = a2hsModal;
   $('#srate').value = String(S.settings.rate);
   $('#srate').onchange = function () { S.settings.rate = parseFloat(this.value); save(); };
-  $('#svoice').onchange = function () { S.settings.voice = this.value; save(); };
+  Array.prototype.forEach.call(document.querySelectorAll('#sacc button'), function (b) { b.onclick = function () { S.settings.accent = b.getAttribute('data-acc'); delete S.settings.voice; save(); Array.prototype.forEach.call(document.querySelectorAll('#sacc button'), function (x) { x.classList.toggle('on', x === b); }); TTS.one(S.settings.accent === 'gb' ? 'Hello! Nice to meet you. Shall we read together?' : 'Hello! Nice to meet you. Let\'s read together!', 'en-US'); }; });
   $('#sauto').onchange = function () { S.settings.autoExplain = this.checked; save(); };
   $('#ssfx').onchange = function () { S.settings.sfx = this.checked; save(); };
   $('#shap').onchange = function () { S.settings.haptics = this.checked; save(); };
