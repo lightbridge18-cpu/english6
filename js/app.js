@@ -1902,7 +1902,7 @@ function checkLimit() {
 }
 
 /* ================= v3.3: 报错 · 期末冲刺 · 单词听写 · 本周重点 · 学习报告 · 老师看板 · 护眼 · 微信 ================= */
-var APP_V = '3.4.0';
+var APP_V = '3.5.0';
 function isEnWord(t) { return /^[A-Za-z][A-Za-z'’\- ]*$/.test(String(t || '').trim()) && String(t).trim().split(/\s+/).length <= 3; }
 /* which word a missed question was about (for "most-missed words") */
 function missWordOf(q) {
@@ -2674,10 +2674,11 @@ function viewChat(sid) {
     send({ blob: r.blob });
   }, function () { $('#chint').textContent = '正在听… 说完再点一下 ⏹'; });
   refreshQuota();
-  function refreshQuota() {
-    AI.quota().then(function (d) {
+  function showLeft(left, max) { var el = $('#cquota'); if (el && left != null) el.innerHTML = '今天还能聊 <b>' + left + '</b>' + (max ? ' / ' + max : '') + ' 次'; }
+  function refreshQuota(soft) {
+    AI.quota(soft).then(function (d) {
       var el = $('#cquota'); if (!el) return;
-      if (!d || !d.ok) { el.textContent = '连不上 AI 服务器（' + ((d && d.msg) || '网络') + '）'; return; }
+      if (!d || !d.ok) { if (soft) return; el.textContent = '连不上 AI 服务器（' + ((d && d.msg) || '网络') + '）'; return; }
       if (!d.ready) { el.textContent = 'AI 还没开通，请家长稍后再试'; return; }
       el.innerHTML = '今天还能聊 <b>' + d.chat.left + '</b> / ' + d.chat.max + ' 次' + (d.login ? '' : ' · <a href="#/me">登录班级账号可以聊更多</a>');
     });
@@ -2696,7 +2697,9 @@ function viewChat(sid) {
   }
   function sendText() { var v = $('#cin').value.trim(); if (!v) return; if (!/[A-Za-z]/.test(v)) { toast('试试用英语说哦 😊'); } $('#cin').value = ''; send({ text: v }); }
   function send(o) {
-    if (CHAT.busy) return; CHAT.busy = true;
+    if (CHAT.busy) return;
+    if (CHAT.msgs.some(function (m) { return m.q; }) && AI.q && AI.q.chat && AI.q.chat.left === 0) { toast('今天的 AI 对话次数用完啦，明天再来吧'); return; }
+    CHAT.busy = true;
     var my = CHAT;
     var meta = { title: ctx.title, unit: ctx.unit, words: ctx.words, patterns: ctx.patterns, lines: ctx.lines, hist: CHAT.msgs.filter(function (m) { return m.r === 'a' || m.r === 'u'; }).slice(-8).map(function (m) { return { r: m.r, t: m.t }; }) };
     var um = null;
@@ -2706,16 +2709,16 @@ function viewChat(sid) {
     var p = o.blob ? AI.post('/api/ai/chat', AI.form(o.blob, meta), 40000) : AI.post('/api/ai/chat', Object.assign(meta, { text: o.text }), 40000);
     p.then(function (d) {
       if (CHAT !== my) return; CHAT.busy = false; AI.setLeft('chat', d);
-      if (!d || !d.ok) { CHAT.msgs.splice(CHAT.msgs.indexOf(um), 1); CHAT.msgs.push({ r: 'e', t: (d && d.msg) || 'AI 暂时不可用' }); drawLog(); refreshQuota(); $('#chint').textContent = '点 🎤 说英语（15 秒内）'; return; }
+      if (!d || !d.ok) { CHAT.msgs.splice(CHAT.msgs.indexOf(um), 1); if (d && d.code === 'quota') CHAT.msgs = CHAT.msgs.filter(function (m) { return !m.q; }); CHAT.msgs.push({ r: 'e', t: (d && d.msg) || 'AI 暂时不可用', q: d && d.code === 'quota' ? 1 : 0 }); drawLog(); if (d && d.code === 'quota') showLeft(0, d.max); else refreshQuota(); $('#chint').textContent = '点 🎤 说英语（15 秒内）'; return; }
       if (d.empty || !d.heard) { CHAT.msgs.splice(CHAT.msgs.indexOf(um), 1); CHAT.msgs.push({ r: 'e', t: '皮皮没听清 👂 请靠近一点、大声一点再说一次，或者点 ⌨️ 打字。' }); drawLog(); $('#chint').textContent = '点 🎤 再说一次'; return; }
       um.t = d.heard; um.stars = d.stars; um.tip = d.tip_zh; um.fix = d.fix && norm(d.fix) !== norm(d.heard) ? d.fix : '';
       CHAT.msgs.push({ r: 'a', t: d.reply, mood: d.stars >= 2 ? 'happy' : 'idle' });
-      drawLog(); refreshQuota();
+      drawLog(); showLeft(d.left, d.max); refreshQuota(true);
       $('#chint').textContent = '点 🎤 接着说';
       TTS.one(d.reply, 'en-US');
       var xp = addXP(Math.max(1, d.stars || 0)); D().chat = (D().chat || 0) + 1; S.stats.chats = (S.stats.chats || 0) + 1; save(); Cloud.markDirty();
       if (d.stars >= 3) sfx.good();
-      if (d.left === 0) CHAT.msgs.push({ r: 'e', t: '今天的 AI 对话次数用完啦，明天再来找皮皮聊天吧！🌙' });
+      if (d.left === 0) CHAT.msgs.push({ r: 'e', t: '今天的 AI 对话次数用完啦，明天再来找皮皮聊天吧！🌙', q: 1 }), drawLog();
       if (xp) toast('⚡ +' + xp + ' XP', 1200);
     });
   }
