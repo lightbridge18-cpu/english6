@@ -1252,6 +1252,20 @@ function guidebook(uid) {
 /* One config constant; a custom domain can replace it later. Override per device: localStorage['e6.api'] = 'https://…' */
 var API_BASE = 'https://api.tuv.indevs.in';
 var ACCT_KEY = 'e6.acct', SYNC_GAP = 180000;
+/* v3.6: random per-device id (not personal). Lets the server tell kids on one school wifi apart for wrong-PIN locks and AI quotas */
+var DEV = (function () { var d = ''; try { d = localStorage.getItem('e6.dev') || ''; if (!/^[a-z0-9]{16,40}$/.test(d)) { d = ''; for (var i = 0; i < 24; i++) d += 'abcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 36)); localStorage.setItem('e6.dev', d); } } catch (e) { } return d; })();
+/* merge another device's progress into ours: counters take the larger value, maps are united, settings stay local */
+function mergeKeep(a, b) {
+  for (var k in b) {
+    if (!Object.prototype.hasOwnProperty.call(b, k) || k === 'settings' || k === 'parent') continue;
+    var x = a[k], y = b[k];
+    if (x === undefined || x === null) a[k] = y;
+    else if (typeof x === 'number' && typeof y === 'number') a[k] = Math.max(x, y);
+    else if (Array.isArray(x) && Array.isArray(y)) { if (y.length > x.length) a[k] = y; }
+    else if (x && y && typeof x === 'object' && typeof y === 'object' && !Array.isArray(x) && !Array.isArray(y)) mergeKeep(x, y);
+  }
+  return a;
+}
 function apiBase() { try { var o = localStorage.getItem('e6.api'); if (o && /^https?:\/\//.test(o)) return o.replace(/\/+$/, ''); } catch (e) { } return API_BASE; }
 /* ISO week id in Asia/Shanghai (Monday start) — same formula as the server */
 function shWeekId(t) {
@@ -1289,7 +1303,7 @@ var Cloud = {
     var n = document.createElement('div'); n.className = 'cloudnote'; n.textContent = '☁️ 云端暂时连不上，进度已保存在本机'; document.body.appendChild(n);
     setTimeout(function () { n.classList.add('out'); setTimeout(function () { n.remove(); }, 400); }, 3500);
   },
-  ident: function () { var a = this.acct; return { cls: a.cls, nick: a.nick, pin: a.pin }; },
+  ident: function () { var a = this.acct; return { cls: a.cls, nick: a.nick, pin: a.pin, dev: DEV }; },
   refreshUI: function () {
     /* only repaint the account card / class board; never touch an open lesson, result or streak screen or a dialog */
     var h = location.hash || '', ov = $('#overlay');
@@ -1304,11 +1318,12 @@ var Cloud = {
     var wait = Math.max(1500, (this.acct.lastTry || 0) + SYNC_GAP - Date.now());
     this.timer = setTimeout(function () { self.sync(false); }, wait);
   },
-  sync: function (manual) {
+  sync: function (manual, force) {
     var self = this, a = this.acct; if (!a) return Promise.resolve(false);
     if (this.busy) return Promise.resolve(false);
     clearTimeout(this.timer); this.timer = null;
     var body = this.ident(); body.data = S; body.stats = cloudStats(); try { body.miss = missStats(); } catch (e) { }
+    if (force) body.force = true; else if (typeof a.cloudUpd === 'number') body.base = a.cloudUpd;
     var txt = JSON.stringify(body);
     if (txt.length > 390000) { toast('进度数据太大，无法上传云端'); return Promise.resolve(false); }
     this.busy = true; a.lastTry = Date.now(); this.saveAcct();
@@ -1316,7 +1331,14 @@ var Cloud = {
     return this.api('/api/sync', txt).then(function (r) {
       self.busy = false;
       if (!self.acct) return false;
-      if (r && r.code === 'toofast') { self.schedule(); return false; }
+      if (r && r.code === 'toofast') { self.schedule(); if (manual) toast('刚刚同步过，过一会儿会自动再同步'); self.refreshUI(); return false; }
+      if (r && r.code === 'conflict' && r.data && typeof r.data.xp === 'number') {
+        /* another device saved since we last synced: fold its progress into ours, then upload the union */
+        try { mergeKeep(S, migrate(JSON.parse(JSON.stringify(r.data)))); save(); } catch (e) { }
+        a.cloudUpd = r.upd || Date.now(); a.dirty = true; a.lastTry = 0; self.saveAcct();
+        if (manual) toast('☁️ 已合并另一台设备的进度');
+        self.refreshUI(); setTimeout(function () { self.sync(false); }, 9000); return false;
+      }
       if (r && r.ok) { a.lastSync = Date.now(); a.cloudUpd = r.upd || a.lastSync; a.dirty = false; a.srvXp = r.xp; a.srvWxp = r.wxp; self.saveAcct(); self.boardTs = 0; if (manual) toast('☁️ 已同步到云端'); self.refreshUI(); return true; }
       if (r && r.code === 'nouser') { self.acct = null; self.saveAcct(); toast('云端找不到这个账号了，请重新登录', 3200); self.refreshUI(); return false; }
       toast((r && r.msg) || '同步失败', 3000); self.refreshUI(); return false;
@@ -1377,14 +1399,14 @@ function cloudLogin(cls, nick, pin, btn) {
   if (!/^\d{4}$/.test(pin)) return toast('PIN 需要 4 位数字');
   if (btn) { btn.disabled = true; btn.textContent = '连接中…'; }
   var reset = function () { if (btn) { btn.disabled = false; btn.textContent = '登录 / 创建账号'; } };
-  return Cloud.api('/api/login', { cls: cls, nick: nick, pin: pin }).then(function (r) {
+  return Cloud.api('/api/login', { cls: cls, nick: nick, pin: pin, dev: DEV }).then(function (r) {
     reset();
     if (!r || !r.ok) { toast((r && r.msg) || '登录失败', 3000); var p = $('#apin'); if (p) { p.classList.add('shake'); setTimeout(function () { p.classList.remove('shake'); }, 400); } return r; }
     Cloud.acct = { cls: r.cls || cls.toUpperCase(), nick: r.nick || nick, pin: pin, lastSync: 0, cloudUpd: r.upd || 0, dirty: false }; Cloud.saveAcct(); Cloud.board = null;
     sfx.good();
     if (r.created || !r.hasData) {
       toast(r.created ? '🎉 账号创建成功，欢迎加入 ' + Cloud.acct.cls : '✅ 登录成功');
-      if (hasProgress()) { Cloud.acct.dirty = true; Cloud.saveAcct(); Cloud.sync(false); }
+      if (hasProgress()) { Cloud.acct.dirty = true; Cloud.saveAcct(); Cloud.sync(false, true); }
       render(); return r;
     }
     /* existing account with a cloud backup: compare, never overwrite silently */
@@ -1406,7 +1428,7 @@ function cloudChoice(data, upd, atLogin) {
     (fresh ? '' : '<button class="btn block' + (cloudMore ? ' ghost' : ' blue') + '" id="cc_u" style="margin-top:12px">⬆️ 用本机进度覆盖云端</button>') +
     '<button class="btn block ghost" id="cc_x" style="margin-top:12px">' + (atLogin ? '先不决定（退出登录）' : '取消') + '</button>', function (m, close) {
       $('#cc_r', m).onclick = function () { close(); applyCloudData(data, upd); };
-      var u = $('#cc_u', m); if (u) u.onclick = function () { close(); Cloud.acct.dirty = true; Cloud.saveAcct(); Cloud.sync(true); };
+      var u = $('#cc_u', m); if (u) u.onclick = function () { close(); Cloud.acct.dirty = true; Cloud.saveAcct(); Cloud.sync(true, true); };
       $('#cc_x', m).onclick = function () { close(); if (atLogin) { Cloud.acct = null; Cloud.saveAcct(); toast('已退出，本机进度没有变化'); render(); } };
     }, 'sticky');
 }
@@ -1903,7 +1925,7 @@ function checkLimit() {
 }
 
 /* ================= v3.3: 报错 · 期末冲刺 · 单词听写 · 本周重点 · 学习报告 · 老师看板 · 护眼 · 微信 ================= */
-var APP_V = '3.5.2';
+var APP_V = '3.6.0';
 function isEnWord(t) { return /^[A-Za-z][A-Za-z'’\- ]*$/.test(String(t || '').trim()) && String(t).trim().split(/\s+/).length <= 3; }
 /* which word a missed question was about (for "most-missed words") */
 function missWordOf(q) {
@@ -2164,16 +2186,18 @@ function weeklyReportHtml() {
 }
 
 /* ---------- 老师看板 teacher board  (#/teacher) ---------- */
-var Teacher = { cls: '', tpin: '', data: null, err: '', loading: false };
+var Teacher = { cls: '', tpin: '', tcode: '', needCode: false, data: null, err: '', loading: false };
 try { var _t = JSON.parse(sessionStorage.getItem('e6.teacher') || 'null'); if (_t) { Teacher.cls = _t.cls; Teacher.tpin = _t.tpin; } } catch (e) { }
 function teacherLoad(btn) {
   Teacher.loading = true; Teacher.err = ''; if (btn) { btn.disabled = true; btn.textContent = '读取中…'; }
-  return Cloud.api('/api/teacher', { cls: Teacher.cls, tpin: Teacher.tpin }).then(function (r) {
+  return Cloud.api('/api/teacher', { cls: Teacher.cls, tpin: Teacher.tpin, tcode: Teacher.tcode, dev: DEV }).then(function (r) {
     Teacher.loading = false;
-    if (r && r.ok) { Teacher.data = r; Teacher.cls = r.cls; try { sessionStorage.setItem('e6.teacher', JSON.stringify({ cls: Teacher.cls, tpin: Teacher.tpin })); } catch (e) { } if (r.created) toast('✅ 已为班级 ' + r.cls + ' 设置教师 PIN，请牢记', 3500); }
+    if (r && r.code === 'needcode') Teacher.needCode = true;
+    if (!(r && r.ok) && Teacher.data && r && r.code !== 'badtpin') { toast((r && r.msg) || '刷新失败', 3200); return; }   /* keep the loaded board on a refresh error */
+    if (r && r.ok) { Teacher.data = r; Teacher.needCode = false; Teacher.tcode = ''; Teacher.cls = r.cls; try { sessionStorage.setItem('e6.teacher', JSON.stringify({ cls: Teacher.cls, tpin: Teacher.tpin })); } catch (e) { } if (r.created) toast('✅ 已为班级 ' + r.cls + ' 设置教师 PIN，请牢记', 3500); }
     else { Teacher.data = null; Teacher.err = (r && r.msg) || '读取失败'; }
     if ((location.hash || '').indexOf('#/teacher') === 0) viewTeacher();
-  }, function () { Teacher.loading = false; Teacher.err = '云端暂时连不上，请稍后再试'; if ((location.hash || '').indexOf('#/teacher') === 0) viewTeacher(); });
+  }, function () { Teacher.loading = false; if (Teacher.data) { Cloud.note(); return; } Teacher.err = '云端暂时连不上，请稍后再试'; if ((location.hash || '').indexOf('#/teacher') === 0) viewTeacher(); });
 }
 function viewTeacher() {
   var h = '<div class="page teacher"><div class="row">' + backBtn('#/parent') + '<h1 class="h grow" style="margin:0">🧑‍🏫 老师看板</h1></div>';
@@ -2182,11 +2206,12 @@ function viewTeacher() {
     h += '<div class="card form">' + bubble('老师您好！输入班级码和教师 PIN，就能看到全班这周的学习情况。', 'happy', 64) +
       '<label>班级码</label><input id="tcls" maxlength="20" value="' + esc(Teacher.cls || (Cloud.acct && Cloud.acct.cls) || '') + '" placeholder="和学生填的一样">' +
       '<label>教师 PIN（4–8 位数字）</label><input id="tpin" type="password" inputmode="numeric" maxlength="8" placeholder="••••••">' +
+      (Teacher.needCode ? '<label>开班码（第一次设置教师 PIN 时需要，向网站管理员要）</label><input id="tcode" maxlength="20" autocomplete="off" placeholder="开班码">' : '') +
       '<p class="sub small">第一次进入时，输入的 PIN 会成为这个班的教师 PIN（服务器只保存加密后的值）。之后需要同一个 PIN 才能查看。</p>' +
       (Teacher.err ? '<p class="errt">' + esc(Teacher.err) + '</p>' : '') + '<button class="btn block blue" id="tgo">进入看板</button></div></div>';
     V.innerHTML = h; bindBack();
     var tp = $('#tpin'); tp.oninput = function () { tp.value = tp.value.replace(/\D/g, '').slice(0, 8); };
-    $('#tgo').onclick = function () { var c = $('#tcls').value.trim(), p = tp.value.trim(); if (Array.from(c).length < 2) return toast('班级码至少 2 个字'); if (!/^\d{4,8}$/.test(p)) return toast('教师 PIN 需要 4–8 位数字'); Teacher.cls = c; Teacher.tpin = p; teacherLoad($('#tgo')); };
+    $('#tgo').onclick = function () { var c = $('#tcls').value.trim(), p = tp.value.trim(); if (Array.from(c).length < 2) return toast('班级码至少 2 个字'); if (!/^\d{4,8}$/.test(p)) return toast('教师 PIN 需要 4–8 位数字'); Teacher.cls = c; Teacher.tpin = p; var tc = $('#tcode'); if (tc) Teacher.tcode = tc.value.trim(); teacherLoad($('#tgo')); };
     return;
   }
   var ms = D0.members || [], wkn = +(String(D0.week).split('W')[1] || 0), act = ms.filter(function (m) { return m.da > 0; }).length, sum = ms.reduce(function (a, m) { return a + m.wxp; }, 0);
@@ -2201,7 +2226,7 @@ function viewTeacher() {
   V.innerHTML = h; bindBack();
   $('#trf').onclick = function () { teacherLoad(); };
   $('#tout').onclick = function () { Teacher.data = null; Teacher.tpin = ''; try { sessionStorage.removeItem('e6.teacher'); } catch (e) { } viewTeacher(); };
-  $$('[data-del]', V).forEach(function (b) { b.onclick = function () { var k = b.getAttribute('data-del'); b.disabled = true; Cloud.api('/api/teacher/delreport', { cls: Teacher.cls, tpin: Teacher.tpin, key: k }).then(function (r) { if (r && r.ok) { Teacher.data.reports = Teacher.data.reports.filter(function (x) { return x.key !== k; }); viewTeacher(); toast('已删除'); } else toast((r && r.msg) || '删除失败'); }, function () { Cloud.note(); }); }; });
+  $$('[data-del]', V).forEach(function (b) { b.onclick = function () { var k = b.getAttribute('data-del'); b.disabled = true; Cloud.api('/api/teacher/delreport', { cls: Teacher.cls, tpin: Teacher.tpin, key: k, dev: DEV }).then(function (r) { if (r && r.ok) { Teacher.data.reports = Teacher.data.reports.filter(function (x) { return x.key !== k; }); viewTeacher(); toast('已删除'); } else toast((r && r.msg) || '删除失败'); }, function () { Cloud.note(); }); }; });
 }
 
 /* ---------- 护眼提醒 eye-care ---------- */
@@ -2303,7 +2328,7 @@ function boot() {
       initBook(book);
     });
   }).then(function () {
-    applyFreezes(); regen(); leagueRollover(); P(); save(); checkAch(true); TTS.loadAudio(); loadScenes().then(function () { var h = location.hash || '#/'; if (h === '#/' || h === '#' || /^#\/(scene|chat|practice)/.test(h)) { if (!session && !$('.modal') && !(SP && SP.playing)) render(); } }); wxBanner(); setTimeout(function () { Reports.flush(); }, 2500);
+    applyFreezes(); regen(); leagueRollover(); P(); save(); checkAch(true); TTS.loadAudio(); loadScenes().then(function () { var h = location.hash || '#/'; if (h === '#/' || h === '#' || /^#\/(scene|chat|practice)/.test(h)) { if (!session && !$('.modal') && !(SP && SP.playing) && !$('#overlay').children.length) render(); } }); wxBanner(); setTimeout(function () { Reports.flush(); }, 2500);
     render();
     if (!S.goal) onboarding(); else setTimeout(scrollToCurrent, 300);
     if (Cloud.acct && Cloud.acct.dirty) Cloud.schedule();
@@ -2494,7 +2519,7 @@ function playBlobUrl(url) { return new Promise(function (res) { TTS.stop(); var 
 /* ---------- AI client ---------- */
 var AI = {
   q: null, qTs: 0, ready: null,
-  ident: function () { return Cloud.acct ? Cloud.ident() : {}; },
+  ident: function () { return Cloud.acct ? Cloud.ident() : { dev: DEV }; },
   post: function (path, body, ms) {
     var ctl = window.AbortController ? new AbortController() : null, tm = setTimeout(function () { if (ctl) ctl.abort(); }, ms || 30000);
     var opt = { method: 'POST', body: body };
