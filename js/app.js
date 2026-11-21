@@ -1266,6 +1266,16 @@ function mergeKeep(a, b) {
   }
   return a;
 }
+/* v3.7: what the cloud held when this device last agreed with it, so a 409 merge can ADD the other device's new XP instead of keeping the max */
+function snapBase(st) { var d = {}, days = (st && st.days) || {}; for (var k in days) if (days[k] && days[k].xp) d[k] = days[k].xp; return { x: (st && st.xp) || 0, d: d }; }
+function addOther(cloud, base) {
+  if (!base || typeof base.x !== 'number') return;
+  var lx = S.xp || 0, ld = {}; for (var k in (S.days || {})) ld[k] = (S.days[k] && S.days[k].xp) || 0;
+  mergeKeep(S, cloud);
+  S.xp = Math.max(cloud.xp || 0, lx + Math.max(0, (cloud.xp || 0) - base.x));
+  var cd = cloud.days || {};
+  for (var d in cd) { var add = Math.max(0, ((cd[d] && cd[d].xp) || 0) - (base.d[d] || 0)); if (S.days[d]) S.days[d].xp = Math.max((cd[d] && cd[d].xp) || 0, (ld[d] || 0) + add); }
+}
 function apiBase() { try { var o = localStorage.getItem('e6.api'); if (o && /^https?:\/\//.test(o)) return o.replace(/\/+$/, ''); } catch (e) { } return API_BASE; }
 /* ISO week id in Asia/Shanghai (Monday start) — same formula as the server */
 function shWeekId(t) {
@@ -1322,7 +1332,7 @@ var Cloud = {
     var self = this, a = this.acct; if (!a) return Promise.resolve(false);
     if (this.busy) return Promise.resolve(false);
     clearTimeout(this.timer); this.timer = null;
-    var body = this.ident(); body.data = S; body.stats = cloudStats(); try { body.miss = missStats(); } catch (e) { }
+    var body = this.ident(); body.data = S; body.stats = cloudStats(); var sent = snapBase(S); try { body.miss = missStats(); } catch (e) { }
     if (force) body.force = true; else if (typeof a.cloudUpd === 'number') body.base = a.cloudUpd;
     var txt = JSON.stringify(body);
     if (txt.length > 390000) { toast('进度数据太大，无法上传云端'); return Promise.resolve(false); }
@@ -1334,12 +1344,12 @@ var Cloud = {
       if (r && r.code === 'toofast') { self.schedule(); if (manual) toast('刚刚同步过，过一会儿会自动再同步'); self.refreshUI(); return false; }
       if (r && r.code === 'conflict' && r.data && typeof r.data.xp === 'number') {
         /* another device saved since we last synced: fold its progress into ours, then upload the union */
-        try { mergeKeep(S, migrate(JSON.parse(JSON.stringify(r.data)))); save(); } catch (e) { }
+        try { var cd = migrate(JSON.parse(JSON.stringify(r.data))); if (a.base) addOther(cd, a.base); else mergeKeep(S, cd); a.base = snapBase(cd); save(); } catch (e) { }
         a.cloudUpd = r.upd || Date.now(); a.dirty = true; a.lastTry = 0; self.saveAcct();
         if (manual) toast('☁️ 已合并另一台设备的进度');
         self.refreshUI(); setTimeout(function () { self.sync(false); }, 9000); return false;
       }
-      if (r && r.ok) { a.lastSync = Date.now(); a.cloudUpd = r.upd || a.lastSync; a.dirty = false; a.srvXp = r.xp; a.srvWxp = r.wxp; self.saveAcct(); self.boardTs = 0; if (manual) toast('☁️ 已同步到云端'); self.refreshUI(); return true; }
+      if (r && r.ok) { a.lastSync = Date.now(); a.cloudUpd = r.upd || a.lastSync; a.base = sent; a.dirty = false; a.srvXp = r.xp; a.srvWxp = r.wxp; self.saveAcct(); self.boardTs = 0; if (manual) toast('☁️ 已同步到云端'); self.refreshUI(); return true; }
       if (r && r.code === 'nouser') { self.acct = null; self.saveAcct(); toast('云端找不到这个账号了，请重新登录', 3200); self.refreshUI(); return false; }
       toast((r && r.msg) || '同步失败', 3000); self.refreshUI(); return false;
     }, function () { self.busy = false; self.note(); self.refreshUI(); return false; });
@@ -1419,7 +1429,7 @@ function cloudLogin(cls, nick, pin, btn) {
 /* cloud vs local: ask which one to keep */
 function cloudChoice(data, upd, atLogin) {
   var cx = (data && data.xp) || 0, lx = S.xp || 0, fresh = !hasProgress();
-  if (atLogin && !fresh && cx === lx) { Cloud.acct.lastSync = Date.now(); Cloud.acct.cloudUpd = upd; Cloud.saveAcct(); toast('✅ 登录成功，云端和本机进度一致'); render(); return; }
+  if (atLogin && !fresh && cx === lx) { Cloud.acct.lastSync = Date.now(); Cloud.acct.cloudUpd = upd; Cloud.acct.base = snapBase(data); Cloud.saveAcct(); toast('✅ 登录成功，云端和本机进度一致'); render(); return; }
   var cloudMore = fresh || cx > lx || (cx === lx && (upd || 0) > (Cloud.acct.lastSync || 0));
   var title = cloudMore ? '云端有进度（' + cx + ' XP），要恢复到这台设备吗？' : '这台设备的进度更多（' + lx + ' XP），要上传到云端吗？';
   var sub = '云端：' + cx + ' XP（' + fmtAgo(upd) + '保存）<br>本机：' + lx + ' XP' + (fresh ? '（还没开始学）' : '');
@@ -1437,7 +1447,7 @@ function applyCloudData(data, upd) {
   var st = migrate(JSON.parse(JSON.stringify(data)));
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { toast('保存失败：浏览器存储已满'); return; }
   S = merge(defState(), st);
-  Cloud.acct.lastSync = Date.now(); Cloud.acct.cloudUpd = upd || 0; Cloud.acct.dirty = false; Cloud.saveAcct();
+  Cloud.acct.lastSync = Date.now(); Cloud.acct.cloudUpd = upd || 0; Cloud.acct.dirty = false; Cloud.acct.base = snapBase(st); Cloud.saveAcct();
   toast('✅ 已恢复云端进度'); setTimeout(function () { location.reload(); }, 500);
 }
 function cloudRestorePrompt() {
@@ -1925,7 +1935,7 @@ function checkLimit() {
 }
 
 /* ================= v3.3: 报错 · 期末冲刺 · 单词听写 · 本周重点 · 学习报告 · 老师看板 · 护眼 · 微信 ================= */
-var APP_V = '3.7.0';
+var APP_V = '3.7.1';
 function isEnWord(t) { return /^[A-Za-z][A-Za-z'’\- ]*$/.test(String(t || '').trim()) && String(t).trim().split(/\s+/).length <= 3; }
 /* which word a missed question was about (for "most-missed words") */
 function missWordOf(q) {
@@ -2779,7 +2789,7 @@ window.__E6 = {
   sess: function () { return session; }, S: function () { return S; }, B: function () { return B; }, LESSONS: function () { return LESSONS; }, P: P,
   startSession: startSession, startLesson: function (id) { startLesson(LESSONS[id]); }, gen: GEN, leagueBoard: leagueBoard, render: render, save: save,
   setState: function (fn) { fn(S); save(); render(); },
-  Cloud: Cloud, cloudStats: cloudStats, AI: AI, MicRec: MicRec, SCN: function () { return SCN; }, explainWrong: explainWrong, TTS: TTS, Eye: Eye, Reports: Reports, startMock: startMock, startDictation: startDictation, missStats: missStats, ahash: ahash, shWeekId: shWeekId, finishSession: function () { finishSession(); }
+  Cloud: Cloud, cloudStats: cloudStats, AI: AI, MicRec: MicRec, SCN: function () { return SCN; }, explainWrong: explainWrong, TTS: TTS, Eye: Eye, Reports: Reports, startMock: startMock, applyCloudData: applyCloudData, startDictation: startDictation, missStats: missStats, ahash: ahash, shWeekId: shWeekId, finishSession: function () { finishSession(); }
 };
 boot();
 })();
