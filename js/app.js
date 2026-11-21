@@ -32,7 +32,7 @@ var KEY = 'e6.v3', OLDKEY = 'e6.v2';
 function defBook() { return { lessons: {}, chal: {}, wrong: {}, read: {}, stories: {}, chests: {}, tested: {}, readDay: null, focus: '', mocks: [], dictWrong: {}, scenes: {} }; }
 function defState() {
   return {
-    v: 3, xp: 0, gems: 100, hearts: 8, h8: 1, heartTs: Date.now(), streak: 0, bestStreak: 0, lastDay: null, days: {}, ach: {}, claimed: {}, wordp: 0,
+    v: 3, xp: 0, gems: 100, hearts: 8, heartTs: Date.now(), streak: 0, bestStreak: 0, lastDay: null, days: {}, ach: {}, claimed: {}, wordp: 0,
     goal: 0, course: 'book', books: {}, freezes: 0, freezeDays: {}, owned: {}, outfit: '', theme: '', boostUntil: 0, badges: {},
     league: { week: '', tier: 0, result: null, best: 0 }, offUntil: { listen: 0, speak: 0 }, streakShown: '', name: '',
     settings: { rate: 0.9, zh: true, sfx: true, accent: 'us', autoExplain: false, haptics: true, eye: 20, dictZh: true },
@@ -373,7 +373,7 @@ function chalPassed() { return MAIN_UNITS.filter(function (u) { return P().chal[
 
 /* ================= hearts / streak / xp / gems ================= */
 var HEART_MS = 30 * 60 * 1000, MAXH = 8;
-if (!S.h8) { S.h8 = 1; S.hearts = Math.min(MAXH, (S.hearts || 0) + 3); save(); }
+if (!S.h8b) { S.h8b = 1; S.hearts = Math.min(MAXH, (S.hearts || 0) + 3); save(); }
 function regen() {
   if (S.hearts >= MAXH) { S.hearts = MAXH; S.heartTs = Date.now(); return; }
   var n = Math.floor((Date.now() - S.heartTs) / HEART_MS);
@@ -693,7 +693,7 @@ function heartsOutModal(onRefill, inLesson) {
     '<button class="btn block blue" id="hbuy"' + (S.gems < cost ? ' disabled' : '') + '>💎 ' + cost + ' 宝石补满爱心</button>' +
     '<button class="btn block" id="hprac" style="margin-top:12px">💪 去练习赚爱心</button>' +
     '<button class="btn block ghost" id="hno" style="margin-top:12px">' + (inLesson ? '退出本课' : '稍后再说') + '</button>', function (m, close) {
-      $('#hbuy', m).onclick = function () { if (S.gems < cost) return; S.gems -= cost; S.stats.buys = (S.stats.buys || 0) + 1; gainHeart(5); sfx.buy(); close(); renderChrome(); onRefill && onRefill(); };
+      $('#hbuy', m).onclick = function () { if (S.gems < cost) return; S.gems -= cost; S.stats.buys = (S.stats.buys || 0) + 1; gainHeart(MAXH); sfx.buy(); close(); renderChrome(); onRefill && onRefill(); };
       $('#hprac', m).onclick = function () { close(); closeLesson(true); location.hash = '#/practice'; };
       $('#hno', m).onclick = function () { close(); if (inLesson) closeLesson(true); };
     }, 'sticky');
@@ -1102,7 +1102,7 @@ function openPop(kind, anchor) {
   popEl.style.setProperty('--ax', (r.left + r.width / 2 - parseFloat(popEl.style.left)) + 'px');
   bindCourse();
   $$('[data-go2]', popEl).forEach(function (b) { b.onclick = function () { closePop(); location.hash = b.getAttribute('data-go2'); }; });
-  var pr = $('#prefill', popEl); if (pr) pr.onclick = function () { if (S.gems < 50) return; S.gems -= 50; S.stats.buys = (S.stats.buys || 0) + 1; gainHeart(5); sfx.buy(); closePop(); renderChrome(); toast('❤️ 爱心已补满'); };
+  var pr = $('#prefill', popEl); if (pr) pr.onclick = function () { if (S.gems < 50) return; S.gems -= 50; S.stats.buys = (S.stats.buys || 0) + 1; gainHeart(MAXH); sfx.buy(); closePop(); renderChrome(); toast('❤️ 爱心已补满'); };
 }
 function courseListHtml() { return '<h4>我的课程</h4>' + BOOKS.map(function (b) { return '<button class="poprow' + (b.id === S.course ? ' on' : '') + '" data-course="' + b.id + '"><span class="fe">' + (b.emoji || '📘') + '</span><span class="grow"><b>' + esc(b.title) + '</b><small>' + esc(b.sub || '') + '</small></span>' + (b.id === S.course ? '✔' : '') + '</button>'; }).join('') + (BOOKS.length < 2 ? '<p class="sub small">六年级下册即将上线</p>' : ''); }
 function bindCourse() { if (popEl) $$('[data-course]', popEl).forEach(function (b) { b.onclick = function () { switchCourse(b.getAttribute('data-course')); }; }); }
@@ -1903,7 +1903,7 @@ function checkLimit() {
 }
 
 /* ================= v3.3: 报错 · 期末冲刺 · 单词听写 · 本周重点 · 学习报告 · 老师看板 · 护眼 · 微信 ================= */
-var APP_V = '3.5.1';
+var APP_V = '3.5.2';
 function isEnWord(t) { return /^[A-Za-z][A-Za-z'’\- ]*$/.test(String(t || '').trim()) && String(t).trim().split(/\s+/).length <= 3; }
 /* which word a missed question was about (for "most-missed words") */
 function missWordOf(q) {
