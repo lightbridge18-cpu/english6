@@ -32,7 +32,7 @@ var KEY = 'e6.v3', OLDKEY = 'e6.v2';
 function defBook() { return { lessons: {}, chal: {}, wrong: {}, read: {}, stories: {}, chests: {}, tested: {}, readDay: null, focus: '', mocks: [], dictWrong: {}, scenes: {} }; }
 function defState() {
   return {
-    v: 3, xp: 0, gems: 100, hearts: 5, heartTs: Date.now(), streak: 0, bestStreak: 0, lastDay: null, days: {}, ach: {}, claimed: {}, wordp: 0,
+    v: 3, xp: 0, gems: 100, hearts: 8, h8: 1, heartTs: Date.now(), streak: 0, bestStreak: 0, lastDay: null, days: {}, ach: {}, claimed: {}, wordp: 0,
     goal: 0, course: 'book', books: {}, freezes: 0, freezeDays: {}, owned: {}, outfit: '', theme: '', boostUntil: 0, badges: {},
     league: { week: '', tier: 0, result: null, best: 0 }, offUntil: { listen: 0, speak: 0 }, streakShown: '', name: '',
     settings: { rate: 0.9, zh: true, sfx: true, accent: 'us', autoExplain: false, haptics: true, eye: 20, dictZh: true },
@@ -372,7 +372,8 @@ function doneLessons() { return ALL_LESSON_IDS.filter(function (k) { return less
 function chalPassed() { return MAIN_UNITS.filter(function (u) { return P().chal[u.id] && P().chal[u.id].pass; }).length; }
 
 /* ================= hearts / streak / xp / gems ================= */
-var HEART_MS = 30 * 60 * 1000, MAXH = 5;
+var HEART_MS = 30 * 60 * 1000, MAXH = 8;
+if (!S.h8) { S.h8 = 1; S.hearts = Math.min(MAXH, (S.hearts || 0) + 3); save(); }
 function regen() {
   if (S.hearts >= MAXH) { S.hearts = MAXH; S.heartTs = Date.now(); return; }
   var n = Math.floor((Date.now() - S.heartTs) / HEART_MS);
@@ -1591,7 +1592,7 @@ function viewShop() {
   regen();
   var h = '<div class="page"><div class="shophead"><h1 class="h">商店</h1><span class="gembal">' + gemSvg() + ' ' + S.gems + '</span></div>' +
     '<h3 class="sech">道具</h3>' +
-    shopItem(heartSvg(), '补满爱心', S.hearts >= MAXH ? '爱心已经满了' : '立刻恢复到 5 颗爱心', 50, 'refill', S.hearts >= MAXH || S.gems < 50 ? 'off' : '') +
+    shopItem(heartSvg(), '补满爱心', S.hearts >= MAXH ? '爱心已经满了' : '立刻恢复到 ' + MAXH + ' 颗爱心', 50, 'refill', S.hearts >= MAXH || S.gems < 50 ? 'off' : '') +
     shopItem('🧊', '连胜冻结', '错过一天也能保住连胜（已有 ' + S.freezes + '/2）', 40, 'freeze', S.freezes >= 2 || S.gems < 40 ? 'off' : '') +
     shopItem('⚡', '双倍经验 15 分钟', boostOn() ? '生效中，还剩 ' + Math.ceil((S.boostUntil - Date.now()) / 60000) + ' 分钟' : '15 分钟内获得的经验翻倍', 80, 'boost', boostOn() || S.gems < 80 ? 'off' : '') +
     '<h3 class="sech">皮皮的装扮</h3><div class="pipshow">' + mascot('happy', 110) + '</div>';
@@ -1603,7 +1604,7 @@ function viewShop() {
 }
 function buy(id) {
   var spend = function (n) { if (S.gems < n) { toast('宝石不够啦'); return false; } S.gems -= n; S.stats.buys = (S.stats.buys || 0) + 1; sfx.buy(); vibrate(30); return true; };
-  if (id === 'refill') { if (S.hearts < MAXH && spend(50)) { gainHeart(5); toast('❤️ 爱心已补满'); } }
+  if (id === 'refill') { if (S.hearts < MAXH && spend(50)) { gainHeart(MAXH); toast('❤️ 爱心已补满'); } }
   else if (id === 'freeze') { if (S.freezes < 2 && spend(40)) { S.freezes++; toast('🧊 获得连胜冻结'); } }
   else if (id === 'boost') { if (!boostOn() && spend(80)) { S.boostUntil = Date.now() + 15 * 60000; toast('⚡ 双倍经验开始！'); } }
   else if (id.indexOf('o:') === 0) { var k = id.slice(2); if (S.owned[id]) S.outfit = S.outfit === k ? '' : k; else if (spend(OUTFITS[k].price)) { S.owned[id] = Date.now(); S.outfit = k; confetti(30); } }
@@ -1902,7 +1903,7 @@ function checkLimit() {
 }
 
 /* ================= v3.3: 报错 · 期末冲刺 · 单词听写 · 本周重点 · 学习报告 · 老师看板 · 护眼 · 微信 ================= */
-var APP_V = '3.5.0';
+var APP_V = '3.5.1';
 function isEnWord(t) { return /^[A-Za-z][A-Za-z'’\- ]*$/.test(String(t || '').trim()) && String(t).trim().split(/\s+/).length <= 3; }
 /* which word a missed question was about (for "most-missed words") */
 function missWordOf(q) {
