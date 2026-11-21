@@ -233,6 +233,7 @@ input.ans:focus,textarea.ans:focus{outline:none;border-color:#84d8ff;background:
 .pic .pe{font-size:60px;line-height:1.1}
 .pic .pw{font-size:16px;font-weight:800}
 .pic .k{position:absolute;right:8px;bottom:8px;width:22px;height:22px;font-size:11px}
+@media(max-width:380px){.pics{gap:8px}.pic{padding:12px 4px 10px;min-width:0}.pic .pe{font-size:44px}.pic .pw{font-size:14px;overflow-wrap:anywhere}.pic .k{top:6px;right:6px;bottom:auto;width:18px;height:18px;font-size:10px}}
 .blanks{line-height:2.1}
 .gap{display:inline-block;min-width:80px;border-bottom:3px solid var(--mute2);margin:0 4px;text-align:center;color:var(--bd)}
 .gap.filled{border-color:var(--b)}

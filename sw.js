@@ -3,7 +3,7 @@
    - /audio/*.mp3: CACHE-FIRST, cached on demand the first time a clip is played (nothing is precached); answers Range requests (Safari)
    - /scenes/<id>/*.webp and /scenes/<id>/a/*.mp3 (v3.4 情景小剧场): CACHE-FIRST on demand, in their own cache
    Cross-origin requests (cloud API, fonts) are not touched. */
-var CACHE = 'e6-v8', AUDIO = 'e6-audio-v1', SCENES = 'e6-scenes-v1';
+var CACHE = 'e6-v9', AUDIO = 'e6-audio-v1', SCENES = 'e6-scenes-v1';
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== CACHE && k !== AUDIO && k !== SCENES; }).map(function (k) { return caches.delete(k); })); }).then(function () { return self.clients.claim(); }));

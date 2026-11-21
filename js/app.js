@@ -502,7 +502,7 @@ function leagueRollover() {
   if (mine > 0 && rank <= PROMO && tier < TIERS.length - 1) to = tier + 1;
   else if (rank > LEAGUE_N - DEMO && tier > 0) to = tier - 1;
   var gems = mine > 0 ? (rank === 1 ? 30 : rank === 2 ? 20 : rank === 3 ? 10 : 0) : 0;
-  S.league = { week: cur, tier: to, best: Math.max(S.league.best || 0, to), result: { week: last, from: tier, to: to, rank: rank, xp: mine, gems: gems, seen: false } };
+  S.league = { week: cur, tier: to, best: Math.max(S.league.best || 0, to), result: { week: last, from: tier, to: to, rank: rank, xp: mine, gems: gems, seen: mine <= 0 } };
   if (to > tier) S.stats.promos = (S.stats.promos || 0) + 1;
   S.gems += gems; save();
 }
@@ -1925,7 +1925,7 @@ function checkLimit() {
 }
 
 /* ================= v3.3: 报错 · 期末冲刺 · 单词听写 · 本周重点 · 学习报告 · 老师看板 · 护眼 · 微信 ================= */
-var APP_V = '3.6.0';
+var APP_V = '3.7.0';
 function isEnWord(t) { return /^[A-Za-z][A-Za-z'’\- ]*$/.test(String(t || '').trim()) && String(t).trim().split(/\s+/).length <= 3; }
 /* which word a missed question was about (for "most-missed words") */
 function missWordOf(q) {
